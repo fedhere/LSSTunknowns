@@ -1,0 +1,166 @@
+\documentclass[onecolumn, 10pt]{aastex63}
+\usepackage{graphicx}%Include figure files
+\usepackage[normalem]{ulem}
+\usepackage{ulem}
+% easy way to highlight new stuff
+\newcommand{\new}[1]{{\color{blue} #1}}
+\newcommand{\question}[1]{{\color{red} #1}}
+\newcommand{\eg}{\emph{e.g.}}
+\newcommand{\ie}{\emph{i.e.}}
+\newcommand{\opsim}{\texttt{OpSim}}
+
+\begin{document}
+
+\title{How do we prepare to discover the unknown}
+
+\correspondingauthor{Federica Bianco}
+\email{fbianco@udel.edu}
+
+\author{Fabio }
+\affiliation{Department of , University of }
+
+\author{Xiaolong }
+\affiliation{Department of Physics and Astronomy, University of Delaware, Newark, DE 19716-2570, USA}
+
+\author{Federica Bianco}
+\affiliation{Department of Physics and Astronomy, University of Delaware, Newark, DE 19716-2570, USA}
+\author{Will Clarkson}
+\affiliation{University or Michigan - Dearborn}
+
+\date{\today}
+
+\begin{abstract}
+The Rubin Observatory Legacy Survey of Space and Time
+%Large Synoptic Survey Telescope 
+(LSST) should open up new regions of parameter space for objects that move or otherwise vary.
+%, with its unique survey capability,  will %have the potential to make unexpected %discoveries. 
+The survey is expected to start in 2023 and facilities and data reduction pipelines are being finalized. The design of the facility, as well as the overall observing strategy, are
+%overall observing strategy is designed, 
+driven by the four core science themes of investigating dark matter and energy, exploring the transient and variable universe, mapping the Milky Way, and producing a catalog the Solar System objects from Near Earth Objects to the outer Solar System of unprecedented completeness. Yet perhaps the most exciting promise of the LSST is the prospect to discover phenomena and objects never seen before or even predicted from theory: \question{unknown-unknowns}. But in finalizing the details of the observing strategy, how can we assure that strategy decision will maximize our ability to discover unknown phenomena?  An observing strategy consists of sets of observational choices: pointings in the sky, alternation of filters, cadence of observations in the same field. Rubin LSST strategy proposals are evaluated by metrics under the Metric Analysis Framework (MAF) API. Although many metrics have been designed to assess how well a proposed strategy would discover planets, or exploding stars, and allow us to extract their physical properties, designing a metric to evaluate LSST's ability to discover unknown phenomena is a conceptually and practically challenging task that no one had yet attempted.
+We create a Rubin LSST metric for \question{unknown-unknowns} by mapping planned LSST observations to a phase space defined by the brightness, color, and the change of those features and exploring the completeness in this phase space, and considering the extent of the proposed survey footprint,  and the ability to identify anomalously moving objects and structures. We measure the ability of 75 currently simulated \new{surveys}~to discover anomalies  including anomalies in color, lightcurve evolution, association, and proper motion. Our results allows  Rubin Observatory to design a survey that maximizes our chances to discover unknown unknowns.
+\end{abstract}
+
+\keywords{LSST, transients, proper motion, survey design}
+
+
+\section{Introduction} \label{sec:intro}
+
+The Rubin Observatory Legacy Survey of Space and Time (LSST hereafter), expected to begin in 2023, is an ambitious project that promises to monitor the entire southern hemisphere sky with high sensitivity, high {(seeing-limited) spatial} resolution, and high temporal cadence (
+$\geq$ 1 image per night,  $\sim$ few days repeat on each field). While other surveys have stretched into one or two directions in these feature space, delivering high cadence observation on small fields of view for example (such as SNLS: \citealt{snls}) or large field of view monitoring at low resolution (like ASAS-SN: \citealt{asas-sn}), {the combination of} high spatial resolution, high cadence, and high sensitivity, places the Rubin LSST  in a unique position to contribute to nearly all fields of astronomy with an unprecedentedly rich data-set. Yet perhaps the most exciting promise of the Rubin LSST is its potential to discover as-yet unknown phenomena. This work focuses on assessing the potential of LSST to discover ``unknown-unknowns'': phenomena that have neither been observed, nor predicted, under different strategic observing choices. 
+The Rubin LSST observing strategy is designed to accomplish several science goals within four science themes: (1) Probing dark energy and dark matter.
+(2) Taking an inventory of the solar system.
+(3) Exploring the transient optical sky.
+(4) Mapping the Milky Way. These diverse goals lead to strict interlocking constraints including requirements on image quality, depth --- single visit depth and number of visits per field --- filters system, and total sky coverage. Detailed description of the science drivers and technical requirements can be found in \citet{lsst}.\footnote{For the Science Requirements Document (SRD) itself, see \citet{lsstSRD}.} Nonetheless, these constraints still allow for a significant flexibility in the details of the observing strategy. For example: while the reference design \citep[e.g.][]{designSystem, designCamera} leads to a revisit time of 3 days on average for 
+$10,000 ~\mathrm{deg}^2$ of sky, with two visits per night, this allows for a large range of distributions and even median values for the inter-night time gaps in observations that are still possible while satisfying this requirement, as seen in Figure \ref{fig:tgaps_example}. {Additionally, there will be many ``surveys'' within the Legacy Survey of Space and Time: the majority of the 10 years will be spent on a survey designed explicitly to meet the requirement specified in \cite{designSystem}: the ``Wide-Fast-Deep'' survey. It is expected that this will take between 75\% and 85\% of the time on-sky. The remaining time will be spent on ``special programs'', incuding ``minisurveys'' (special coverage of extended areas of sky), ``Deep-Drilling-Fields'' (single pointings that will be visited periodically at an enhanced cadence and to reach a higher cumulative depth in the stacked images), and potentially ``Targets of Opportunity'' follow up of multi-messenger triggers.}
+
+% WIC 2020-06-22 I found the description of the simulations, the opsims, the mafs, cosep, whitepapers, and metrics & FoMs to be a little bit compressed and hard to follow. Here's my attempt to give just a bit more context. 
+{Perhaps uniquely among modern surveys, the Rubin Observatory Project team has shared its extensive simulations framework with the scientific community at a very high level of detail, including (but not limited to): detailed hardware specifications, facility operations models (including overheads at a high level of detail), atmospheric transmission, and astrophysical populations \citep{simsFramework}. For most users in the scientific community, it is the metadata of the predicted observing strategies (e.g. observing time, expected seeing, instantaneous depth to $5\sigma$~photometric precision) that is most relevant to evaluation of survey strategies: the project has made available to the community a large number (well over two hundred to-date) runs from its Operations Simulator \citep{opsim}, which generates the metadata for a full ten-year period of operation under specified desiderata for the run characteristics (for brevity, in this paper we refer to a simulated 10-year survey as an \opsim. Led by Lynne Jones \& Peter Yoachim at the University of Washington, the project has also developed a dedicated Metrics Analysis Framework (\texttt{MAF}: \citealt{maf})\footnote{Also available at \url{https://www.lsst.org/content/lsst-metrics-analysis-framework-maf}}, and continues to work with the community in the development of the tools to extract the scientific utility of the \texttt{OpSims} for various scientific cases. Standard metrics run on all \texttt{OpSims} by the project fall under the main \texttt{sims\_maf} package,\footnote{\url{https://github.com/lsst/sims_maf}} while community-contributed metrics are curated at the \texttt{maf-contrib} project.\footnote{\url{https://github.com/LSST-nonproject/sims_maf_contrib}}. We discuss the Operations Simulator and \texttt{MAF} in a little more detail in Section \ref{sec:MAF}.}
+
+{Recent community input on the LSST survey strategy roughly divides into three phases. The first phase concluded with the development of the ``Community Observing Strategy Evaluation Paper'' (COSEP; \citealt{cosep}), which attempted to distill the requirements of a wide range of science cases into specifications (and in some cases evaluations) of simple quantitative measures of scientific effectiveness that could be compared between science cases. In the second phase,  the community was asked by the project to prepare cadence whitepapers to suggest alternatives to the baseline cadence; 46 whitepapers were ultimately submitted.\footnote{\url{https://www.lsst.org/submitted-whitepaper-2018}} In the current phase, the community is working to implement the quantitative scoring for the various science cases to allow them to be compared on a timescale commensurate with the ultimate decisions by the project on the survey strategy to adopt. This paper forms part of this third phase of community input.}
+
+{A word on notation is in order. Following the naming convention of the the COSEP, we will used the acronym ``MAF'' (or sometimes the term ``metric'') to refer to a piece of code that measures properties of an \opsim~ on a per-field basis. The overall evaluation of a strategy requires assessing its power over a large number of scientific goals. Therefore, in order to be useful for comparison, the \texttt{MAF}s must be summarized themselves into Figures of Merit (FoMs): single numbers that convey the power of a survey (as simulated) to achieve a specific science goal. An example of a {\it metric} might be a characterization of the time-gaps between repeat observations of each field in a particular filter-pair of interest, while the associated$FoM$ would collapse the distribution into a single number that captures the sensitivity of the strategy to the detection of transients in some range of parameter space. For more on the operational definitions of metrics and FoMs, see the COSEP \citep{cosep}. }
+
+%A number of simulated LSST surveys have been produced by the Rubin Data Management (?) team \citep{simsFramework} reflecting different requirements as proposed by the scientific community in a series of white paper.\footnote{\url{https://www.lsst.org/submitted-whitepaper-2018}. } Survey simulations are generated through the Operations Simulation (\opsim~ \citealt{opsim}) framework, and can be evaluated within the Metric Analysis Framework (\texttt{MAF}: \citealt{maf})\footnote{Also available at \url{https://www.lsst.org/content/lsst-metrics-analysis-framework-maf}}. Hereafter,  \new{following the naming convention of the COSEP, we will used the acronym ``MAF'' or as well ``metric'' to refer to a piece of code that measures properties of an \opsim~: the map of evaluated quantities on a field-by-field basis. The figure of merit (FoM) the result of the combination of the metric and any other weightings we impose, over the entire sky to distill the metric into a single scalar.}  For example extracting the time-gap between observations of the same field in any two filters, and collecting summary statistics of this variable over the entire survey. However, the overall evaluation of a strategy requires assessing its power over a large number of scientific goals. Therefore, in order to be useful for comparison, the \texttt{MAF}s have to be summarized themselves into Figures of Merit (FoM): single numbers that conveys the power of a survey (as simulated) to achieve a specific science goal. For example, we create$FoM$ to evaluate a survey's ability to capture color in each pair of filters, and brightness changes at different time scales in any filter, and the \texttt{MAF} for each filter pair and each filter can be combined in a single$FoM$ (see \citealt{cosep}, referred to as COSEP hereafter, for a detailed description of the FoM). 
+
+Ideally, the $FoM$ would be measured in bits of information that the survey add over available information on a phenomenon. While clear in principle, and rather fascinating, this information-theory inspired definition of a $FoM$ is hard to achieve in practice. Not all science cases easily translate into a measurement on a quantity: while for cosmology, for example, one could conceivable measure the power of a survey in the decrease in the uncertainty on $H_0$, the power of a survey in identifying progenitors of Supernovae, for example, is less easily quantifiable.  Following this logic, measuring the power of a survey to discover unknwon phenomena would be impossible.
+The assessment of the ability of a survey realization (\opsim~ run) to discover unknwon phenomena requires a model-free approach (otherwise we would by default limit ourselves to unobserved phenomena). \question{[CITE ANOMALY DETECTION PAPERS]}
+We engage here in the exercise of defining a metric that will allow us to compare LSST simulations, \opsim s, based on their potential to discover unknown-unknowns. We make this metric available to aid Rubin survey strategy decisions.
+
+{This publication is one of a pair: in this communication (paper I) we focus exclusively on the ``Wide-Fast-Deep'' (WFD) regions, while we address special regions (like the Deep-Drilling fields) in paper II. %There are two reasons for this choice: First, {\it all the simulated strategies must include the WFD main survey regions, whereas not all the simulations include the Deep Drilling fields or the ``mini-surveys.'' Second, the Deep Drilling fields (DDFs) use very different cadences from the main-survey by design, including many more exposures per filter per DDF, which can bias the resulting metrics. 
+In practice, \opsim, further described in \autoref{sec:MAF}, generates the synthetic observations using ``proposals'' for various assumed programs, including Deep Drilling Fields (DDFs), WFD, and ``special`` programs such as the Galactic mid-plane, Magellanic Clouds and the North Ecliptic Spur (NES, which affords greater sensitivity to Solar System objects; e.g. Chapter 2 of COSEP), with the ``{\tt proposalID}'' parameters preserved in the \opsim~ output. In this paper, we select entries {\it only} applying the contrain {\tt proposalID} = 1 (corresponding to WFD) in the \texttt{MAF} calls (see \autoref{sec:MAF}). Our survey comparisons in this communication do NOT therefore directly address the regions and strategies served by mini-surveys (such as the North Ecliptic Spur, the Magellanic Clouds, or the Bulge); and we defer that to paper II.}%\footnote{~\question{2020-06-03 WIC - I'm still on the fence about the choice to limit to {\tt proposalID=1}. I agree we want to avoid the Deep Drilling Fields for scientific as well as cadence reasons, but I'm worried that avoiding the mini-surveys risks throwing out a large number of science cases (and could cause the FOMs to look artificially similar) before any FOMs are evaluated. I guess from my point of view, the fact that not all \opsim s have all the mini-surveys is a {\it feature} of these FOMs, not a bug - it allows all those \opsim s to be compared on the same, quantitative footing. It ensures the selection really is driven by the FOMs and not by a prior choice of surveys to avoid followed by the FOMs. (Put another way, I think avoiding the mini-surveys will enrage many of our colleagues who do care about the mini-survey regions...) I think ideally we want to tabulate and plot the FOMs separately for (each of) the ``mini survey'' regions, but selected {\it spatially} rather than by {\tt proposalID} (scientifically, we care more about whether regions of interest are well-observed than the particular {\tt proposalID}s to which the individual observations correspond), but that would be more work to implement. A counter-argument for some of the FOMs might be that we don't expect to detect dispersed streams behind some of the mini-survey areas (like the bulge!) but even there I think it would be good to include the mini-surveys (e.g. we can find out if the extra area coverage bought by adding the NES helps to find dispersed structure.)  $<\backslash$rant$>$}} \footnote{\question{2020-06-11: So I am not sure what we should do either. the issue is that an \opsim~ may not contain a minisurvey or another, with no change to the WFD, but as the \opsim s are designed the two are going to be interpreted simultaneously. }}
+
+%********************method***********************************
+
+\section{Methodology} \label{method}
+
+\subsection{MAF and \opsim~}\label{sec:MAF}
+The Operations-Simulation software \opsim~ allows the generation of a simulated strategy based on a series of strategy requirements: for example total number of images per field per filter, including simulated weather, telescope downtimes, etc. The input of an \opsim~ run are the survey requirements (survey strategy) and the output is a database of observations with associated characteristics (e.g. $5-\sigma$ depth). The Rubin \opsim~ went through several versions since its initial creation (CITATIONS) that primarily differ in the optimization scheme. 
+
+The Metric Analysis Framework (MAF\footnote{https://www.lsst.org/scientists/simulations/maf}) API is a software package created by the Rubin Observatory \citep{maf} to facilitate the evaluation of simulated LSSTs to achieve specific science goals as measured by the strategy’s ability to obtain observations with specified characteristics. The \texttt{MAF} interacts with \opsim\footnote{https://www.lsst.org/scientists/simulations/opsim} databases, which specifies a series of simulated observations for the 10-year survey including the stochastic effects of weather and a set of strategic requirements. The \texttt{MAF} has been made public upon its creation to facilitate community input in the strategy design.
+The \texttt{MAF} enables selections observations within an \opsim~ primarily through: \texttt{sqlconstrain} which enables selection of, for example, filters, or time ranges (\eg~the first year of the survey). Further, the choice of slicers allows the user to group observations. For example, one may ``slice'' the survey by equal-area spatial regions (\eg~using the HEALPIX scheme of \citealt{healpix2005}; throughout, we choose a \texttt{HealpixelSlicer} with 64 sides, corresponding roughly to the size of the Rubin LSST field of view).
+
+\subsection{Feature space}
+
+Anomaly detection is an important field of research with deep methodological ramifications \citep{AD2009}. Notable advances in the field have been achieved in recent years across disciplines: from threat detection in defense and security~\citep[e.g.][]{sultani2018real}, to astrophysics~\citep{Soraisam20} wit the discovery of rare and possible unique astrophysical phenomena \citep[although we note that two of these genuine "unknown-unknowns" were detected through crowdsourcing data analysis]{Voorwerp09, oumuamua, tabbysstar}.  Anomaly detection is generally approached either through unsupervised or supervised learning learning techniques \citep[e.g.][]{10.1007/11881599_134, bishop2006, hastie2009elements}. In supervised learning, or \emph{clustering}, a  similarity metrics is defined in the available features space enabling the grouping of similar objects together and the identification of objects that do not belong to any existing group (cluster). Alternatively, the supervised approach identifies groups in a latent lower dimensional space based on known classifications in the original feature space derived by domain experts (deep learning approaches to anomaly detection belong to this category). Both of these approaches implicitly rely on the completeness of measurements in the original feature space: gaps in the observing strategy  affect the discovery of unknown-unknowns by both increasing the risk that an anomaly would go undetected, if it falls in a gap, and making its anomalous nature harder to assess. In this papers' series we focus on survey design to maximize the throughput of algorithms for anomaly detection, regardless of the nature of the algorithmic approach.
+
+\begin{center}
+\begin{figure}[t!]
+\centering
+\includegraphics[scale=0.7]{figures/intranight_gap.png}
+\caption{Distribution of time gaps between observations for 75 simulations of the Rubin LSST Wide Fast Deep (for observations not in the same night,  healpix with 64 sides, roughly corresponding to 55 arcminute resolution). The top plot shows the distribution of gaps between observations of the same filed in \emph{any} filter, the following plots show the time gaps between observations in the same filter, as labelled. The plots are normalized and median gap value at the peak of each histogram across all \opsim s is indicated to the right of each distribution, along with the median  number of observations over the 10 year survey simulation. The distributions are smoothed with via Kernel density estimation algorithm. While all these \opsim s fulfill the requirements in the SRD \citep{lsstSRD} the distributions still show a significant range. See Section \ref{sec:intro}.}
+\label{fig:tgaps_example}
+\end{figure}
+\end{center}
+As measured by imaging surveys, astronomical objects are characterized by color, brightness, brightness ratio in different portions of the energy spectrum, position, shape, and the rate and direction of change in any of those features. This leads to a multidimensional phase space which can be explored. Different categories of phenomena lie in different regions of the phase space (see \autoref{fig:phasespace}). Accordingly, we identified the following features that can be measured in the Rubin Observatory data:
+\begin{itemize}
+\item Color
+\item Time evolution
+\item Motion    
+\item Morphology
+\item Association
+\end{itemize}
+
+We set morphology aside, as largely the power of the survey to measure morphological anomalies does not depend on the survey strategy, but rather on the image system design (e.g. resolution and depth). We assume that measuring anomalous associations depends on our accuracy in measuring the properties of each object.
+
+Having identified features that can be extracted by the Rubin Observatory data, and the LSST in particular, such as color information or lightcurve evolution, we measure the completeness of the survey in a hypercube in the feature space as a model-independent measure of the power to detect unknown-unknown transients.  
+To measure dynamical anomalies in a completely model-independent way proves to be more difficult. Consider objects in our own galaxy. Having measured the proper motion of an object in the sky, our ability to understand if it is anomalous depends on  our accuracy in the motion measurement, and our ability to associate that object to a known galactic component with known proper motion distribution, given its coordinates, color, and brightness. Thus to measure the ability to identify anomalous proper motions we consider the photometric accuracy and the time gap between observations of the same field. One final parameter that influences our ability to detect anomalies is the sky footprint. Trivially, a larger sky footprint will lead to a higher event rate for anomalies. If one wants to maximise the chance of detecting extragalactic anomalies then a larger footprint would be favorable, while the probability of detecting galactic anomalies will scale with density of objects in the sky.
+
+Ultimately, we define a set of metrics that can simply be summed to generate a $FoM$ for unknown-unknowns:
+
+\begin{equation}
+   FoM = \sum_{i={c,s,\mu,A_\mathrm{sky}, d }} w_i ~\mathrm{MAF}_i
+\end{equation}
+
+where $c, ~s, \mu,~ A_\mathrm{sky}, ~d$ represent the color, lightcurve shape, proper motion, footprint, and sky density respectively, and $w$ are weights that can be assigned to favor the discovery of, for example, transients over non-evolving objects, or galactic over extragalactic transients. We refrain from assigning weights and we normalize each \texttt{MAF} to the best of our ability in a 0-1 range, so as to provide a ``neutral'' comparison of the existing LSST simulations.
+
+\subsection{\opsim~ Data}
+\question{We need to describe \texttt{baseline v1.4} and the families, and put a table with all the names and families.}
+
+
+%********************results***********************************
+
+%\section{Results}
+
+%\subsection{Color}
+\input{tgaps}
+
+\input{propermotion}
+
+\question{I propose we leave the footprint last since it is important for both time gaps and proper motion}
+\input{footprint}
+%\subsection{Proper Motion}
+\section{Conclusion and Discussion}
+
+
+
+\begin{center}
+\begin{figure}[t!]
+\centering
+\includegraphics[scale=0.5
+]{figures/opsimParallelCoord.png}
+
+\includegraphics[scale=0.5]{figures/opsimParallelCoord_cum.png}
+\caption{The result of the four$FoM$ for all available OpSims. Different FoMs are shown along the $x$ axis, as labeled, for all OpSims. Different families of OpSims are shown in different colors, as labled. On the top each$FoM$ is shown individually, at the bottom their cumulative sum (normalized) is shown. \question{which is better?} The ``color'' FoM, which measures how regularly time gaps are collected within 1.5 hours, generally leads to smaller values. While the \opsim~ switch places, they don't generally do so in  a very significant fashion. \question{which families are better?}}
+\label{fig:opsimPC}
+\end{figure}
+\end{center}
+
+
+\acknowledgments
+We used the following packages:
+\begin{itemize}
+\item{\texttt{python}}
+\item{\texttt{pandas}}
+\item{the \texttt{glasbey} package to generate maximally separable colors. \citep{glasbey2007colour}}
+\item{Webplot Digitizer \citep{digitizer}}
+\end{itemize}
+We thank 
+
+% 2020-06-10 WIC - I recommend we use bibtex to handle the references, it's a lot less work than using bibitems (since unused references are not put in the article, the output is automatically sorted by alphabetical then date order, and the citations can be pasted from ADS' "Export Citation" link into the .bib file.). There is a github repo with a list of project publications at the following location:
+% https://github.com/lsst-pst/LSSTreferences/
+\bibliography{refs}
+
+%\input{References}
+
+
+\end{document}

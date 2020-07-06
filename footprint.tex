@@ -1,0 +1,38 @@
+\begin{figure}
+\centering
+\gridline{
+  \fig{figures/footprintFOM_0.png}{0.4\textwidth}{(a)} 
+  \fig{figures/footprintFOM_1.png}{0.4\textwidth}{ (b)} 
+}
+\caption{The figure of merit $FoM_{Gal}$ for all 75 \opsim~ runs (for the WFD surveys) based on footprint coverage and star density as described in Section \ref{sec:fom:footprint } (expression \ref{eq:fom:footprint}). \new{Colors and symbols denote filter-combinations using the same conventions as in Figure \ref{fig:tgapsFOM}}. \question{the right plot is shrter than the left one...}}
+\label{fig:starDensity_FOM}
+\end{figure}
+
+
+
+\section{Footprint}\label{sec:fom:footprint }
+Footprint coverage is another important factor which play an crucial role in determining LSST's ability to discover anomalous and unusual phenomena.
+
+We evaluate what fraction of the sky is covered by an observing strategy for each filter pair. Although an object may have an anomalous color which could be detected in a single visit pair, we focus here on transients and proper-motion and we want to observe a field repeatedly to detect changes. \question{This seems too demanding! maybe 1/2 that? would that not give enough differences?}. We use the median number of visits $N_{median}$ in \texttt{baseline v1.4} as the fiducial threshold: a field is considered well observed if it has more observations than the \question{$\frac{1}{2}N_{median}$}.  
+To do this, we perform the follow steps for each field, 
+
+\begin{itemize}
+    \item count number of visits within 1.5 hours for each filter pair; 
+    \item check if $N ~>~\frac{1}{2}N_{median}$;
+    \item sum over all fields that pass requirement.
+\end{itemize}
+
+However, depending on whether a scientist's focus is on extragalactic or  galactic anomalies, the preferred footprint would be different: for extragalactic anomalies one would simply want to maximize the sky coverage, whereas for Galactic science the probability of discovering an anomalous object or phenomenon would scale with the number of objects in the Galaxy in that observing field. Therefore, in addition to the $FoM$ just described, which focuses on extragalactic science ($FoM_\mathrm{EG}$), we include one further footprint figure f merit ($FoM_\mathrm{Gal}$) that scales with the field's star density: this $FoM$ is the sum of each field that meets the requirements as described above, multiplied by the number of stars in that field.
+
+These FoMs for an \opsim~ are therefore defined as: 
+\begin{eqnarray}
+    p_{i} &=& 1 ~\mathrm{if} ~N ~>~\frac{1}{2}N_{median} ~\mathrm{else}~ 0\\
+    FoM_\mathrm{EG} &=& \sum_{i} p_{i}, \\
+    FoM_\mathrm{Gal} &=& \sum_{i} s_{i} p_{i}.
+\label{eq:fom:footprint}
+\end{eqnarray}
+where  $s_{i}$ is the star density (which is obtained from existing MAF functions) for the $i$th field, and $p$ equals to 1 or 0 depending on whether the field meet the minimum requirements. 
+
+\question{2020-06-03 WIC - this subsection could be a little clearer: the text is a bit vague on how expressions \ref{eq:fom:tgaps} and \ref{eq:fom:footprint} relate to each other (e.g. the $N_i$~in expression \ref{eq:fom:footprint} is very much {\it not} the same thing as the $N$~in expression \ref{eq:fom:tgaps}). The text should make clear whether Figure \ref{fig:starDensity_FOM} refers to the {\it combined} Figure of merit (including both the tgaps and the density \& footprints) or just the density \& footprints.}
+
+These $FoM$s of merit for all 75 simulations are plotted in Fig. \ref{fig:starDensity_FOM} and \question{Xiaolong add the figure here for the FOMEG}. 
