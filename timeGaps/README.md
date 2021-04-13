@@ -5,9 +5,9 @@ for wfd:   [tgaps_wfd.ipynb](tgaps_wfd.ipynb)
 for minisurvey: [tgaps_minisurvey.ipynb](tgaps_minisurvey.ipynb)
 
 ### plot
-fig 3 fig 4:   [plot_dT_hist.ipynb](plot_dT_hist.ipynb)
+fig 3 fig 4: histogram of time gaps  [plot_dT_hist.ipynb](plot_dT_hist.ipynb)
 
-fig 5, fig7,  fig9, fig 10, fig 13:  [plot_barh_wfd.ipynb](plot_barh_wfd.ipynb)
+fig 5, fig7,  fig9, fig 10, fig 13: bar plot for WFD [plot_barh_wfd.ipynb](plot_barh_wfd.ipynb)
 
 fig6: depth hisgotram [depth_wfd_ms.ipynb](depth_wfd_ms.ipynb)
 
