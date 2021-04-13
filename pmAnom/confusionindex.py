@@ -50,7 +50,7 @@ class reducedPM(BaseMetric):
                 print('not implemented to read .json extention') 
             return data 
         
-        def __init__(self, filename = 'data.csv', snr_lim=5,mode=None, MagIterLim=[0,1,1], surveyduration=10,
+        def __init__(self, filename = 'Carlin12.csv', snr_lim=5,mode=None, MagIterLim=[0,1,1], surveyduration=10,
                       metricName='reducedPM',m5Col='fiveSigmaDepth',real_data= True, out_type = 'confusion',
                       mjdCol='observationStartMJD',filterCol='filter', seeingCol='seeingFwhmGeom',dataout=True,**kwargs): 
             self.mjdCol = mjdCol 
