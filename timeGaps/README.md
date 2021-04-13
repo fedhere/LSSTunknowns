@@ -1,7 +1,8 @@
 # run metric and plot for anomaly detection paper 
 
 ### run metrics: 
-for wfd:   [tgaps_wfd.ipynb](tgaps_wfd.ipynb)
+for WFD:   [tgaps_wfd.ipynb](tgaps_wfd.ipynb)
+
 for minisurvey: [tgaps_minisurvey.ipynb](tgaps_minisurvey.ipynb)
 
 ### plot
