@@ -5,7 +5,13 @@ for WFD:   [tgaps_wfd.ipynb](tgaps_wfd.ipynb)
 
 for minisurvey: [tgaps_minisurvey.ipynb](tgaps_minisurvey.ipynb)
 
+### data
+
+results from opsim v1.5 in directory [data_v1_5](data_v1_5)
+
+
 ### plot
+
 fig 3 fig 4: histogram of time gaps  [plot_dT_hist.ipynb](plot_dT_hist.ipynb)
 
 fig 5, fig7,  fig9, fig 10, fig 13: bar plot for WFD [plot_barh_wfd.ipynb](plot_barh_wfd.ipynb)
