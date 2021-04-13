@@ -5,9 +5,6 @@ for WFD:   [tgaps_wfd.ipynb](tgaps_wfd.ipynb)
 
 for minisurvey: [tgaps_minisurvey.ipynb](tgaps_minisurvey.ipynb)
 
-### data
-
-
 ### plot
 fig 3 fig 4: histogram of time gaps  [plot_dT_hist.ipynb](plot_dT_hist.ipynb)
 
