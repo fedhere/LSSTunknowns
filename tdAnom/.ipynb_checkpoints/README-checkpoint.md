@@ -1,4 +1,4 @@
-# run metric and plot for anomaly detection paper 
+# run metric and plot for time domain anomalies/novelties detection paper 
 
 ### run metrics: 
 for WFD:   [tgaps_wfd.ipynb](tgaps_wfd.ipynb)
