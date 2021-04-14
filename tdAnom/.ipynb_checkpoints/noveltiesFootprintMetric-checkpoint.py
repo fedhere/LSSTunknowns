@@ -2,9 +2,6 @@ import numpy as np
 import pandas as pd
 
 import lsst.sims.maf.metrics as metrics
-import lsst.sims.maf.slicers as slicers
-import lsst.sims.maf.metricBundles as metricBundles
-import lsst.sims.maf.db as db
 from lsst.sims.maf.utils import m52snr
 
 def RADec2pix(nside, ra, dec, degree=True):
