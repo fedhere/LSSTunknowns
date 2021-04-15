@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import healpy as hp
 
 import lsst.sims.maf.metrics as metrics
 from lsst.sims.maf.utils import m52snr
@@ -178,7 +179,7 @@ class filterPairTGapsFootprintMetric(metrics.BaseMetric):
         fieldDec = np.mean(dataSlice['fieldDec']),
         
         # check whether number of visits is above threshold
-        check = len(dT_lim) >=self.Nvth[f0+f1]
+        check = len(dT_tlim) >=self.Nvth[f0+f1]
        
         if self.save_dT:
             dic = {'Nrun': self.Nrun, 
@@ -211,5 +212,7 @@ class filterPairTGapsFootprintMetric(metrics.BaseMetric):
             #f1 = self.fltpair[1]
             
             #result = np.min(dT) if len(dT)!=0 else np.inf
-            
+            result = check
             return float(result) 
+
+

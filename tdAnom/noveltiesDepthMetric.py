@@ -9,6 +9,7 @@ mag_stretch = {'u':24.0, 'g':25.1, 'r':24.8, 'i':24.1, 'z':23.4, 'y':22.2 }
 class noveltiesDepthMetric(metrics.BaseMetric):
     """
     depth 
+    
     returns
     fiveSigmaDepth - stretch_goal
     
@@ -22,7 +23,7 @@ class noveltiesDepthMetric(metrics.BaseMetric):
 
     def __init__(self, colname=['observationStartMJD', 'filter', 'fiveSigmaDepth'], 
                  fltpair=['r', 'i'], mag_lim=[18, 18], 
-                 dataout=True, **kwargs):
+                 dataout=False, **kwargs):
         self.colname = colname
         self.fltpair = fltpair
         self.mag_lim = mag_lim
@@ -50,14 +51,23 @@ class noveltiesDepthMetric(metrics.BaseMetric):
         idx0 = ( dataSlice['filter'] == f0 ) & ( dataSlice['fiveSigmaDepth'] > self.mag_lim[0])
         idx1 = ( dataSlice['filter'] == f1 ) & ( dataSlice['fiveSigmaDepth'] > self.mag_lim[1])
         
-        depth0 = np.median( dataSlice['fiveSigmaDepth'][idx0] )
-        depth1 = np.median( dataSlice['fiveSigmaDepth'][idx1] )
+        
+        magSlice0 = dataSlice['fiveSigmaDepth'][idx0]
+        magSlice1 = dataSlice['fiveSigmaDepth'][idx0]
+        
+        if (len(magSlice0)>0) and (len(magSlice1)>0):
+        
+            depth0 = np.median( magSlice0 )
+            depth1 = np.median( magSlice1 )
+        else:
+            depth0 = np.nan
+            depth1 = np.nan
         
         dic = {'f0': f0,
-               'f1': f1,
-               'depth0': depth0,
-               'depth1': depth1,
-              }
+                'f1': f1,
+                'depth0': depth0,
+                'depth1': depth1,
+                  }
         
         if self.dataout:
             # return dT
@@ -66,5 +76,5 @@ class noveltiesDepthMetric(metrics.BaseMetric):
         else:
             # return mean of depth between two filters
             result = np.mean([depth0, depth1])
-            return float(result) 
+            return float(result)    
 
