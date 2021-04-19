@@ -1,3 +1,8 @@
+#### Written by Xiaolong Li @xiaolng for PAPER LINK
+### this metric is discussed in Section XX
+### Original version April 2021
+
+
 import numpy as np
 import pandas as pd
 
