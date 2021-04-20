@@ -1,3 +1,7 @@
+#### Written by Xiaolong Li @xiaolng for paper https://www.overleaf.com/read/fgbxzbrnmsyg
+### this metric is discussed in Section 3 Color and Time Evolution
+### Original version April 2021
+
 import numpy as np
 import pandas as pd
 
@@ -38,10 +42,12 @@ class filterPairTGapsMetric(metrics.BaseMetric):
     dT or N_v * np.exp(-Dkl) for each fields
     
     Parameters:
-        colname: 
+        colname: columns names to select from opsim database
         fltpair: filter pair, eg ['r', 'i']
-        snr_lim: list, signal to noise ratio (fiveSigmaDepth) threshold for fltpair, default [5, 5]
+        mag_lim: list, signal to noise ratio (fiveSigmaDepth) threshold for fltpair, default [5, 5]
+        save_dT: True/False, whether to save the raw time gaps data
         filename: output a csv table for time gaps of each field
+        dataout: True, returns a dict for each field, or False, float number , 
     
     """
 
@@ -177,4 +183,3 @@ class filterPairTGapsMetric(metrics.BaseMetric):
         #    f1 = self.fltpair[1]
             result = np.min(dT) if len(dT)!=0 else np.inf
             return float(result) 
-

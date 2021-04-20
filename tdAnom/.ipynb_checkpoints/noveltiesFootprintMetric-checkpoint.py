@@ -1,5 +1,10 @@
+#### Written by Xiaolong Li @xiaolng for paper https://www.overleaf.com/read/fgbxzbrnmsyg
+### this metric is discussed in Section 5 Footprint
+### Original version April 2021
+
 import numpy as np
 import pandas as pd
+import healpy as hp
 
 import lsst.sims.maf.metrics as metrics
 from lsst.sims.maf.utils import m52snr
@@ -30,7 +35,7 @@ def RADec2pix(nside, ra, dec, degree=True):
     hpid = hp.ang2pix(nside, lat, ra )
     return hpid
 
-# threshold from WFD
+# threshold from WFD, median visits of baseline_v1.5
 Nvth = {'uu': 1770.0,
  'ug': 50.0,
  'ur': 47.0,
@@ -58,16 +63,18 @@ class filterPairTGapsFootprintMetric(metrics.BaseMetric):
     Count the number of filter pairs within tmin~tmax
     and check whether a field have number of time gaps larger than threshold 
     
-    returns
+    Returns
     True if number of time gaps given threshold
     
     # dT or N_v * np.exp(-Dkl) for each fields
     
     Parameters:
-        colname: 
-        fltpair: filter pair, eg ['r', 'i']
-        snr_lim: list, signal to noise ratio (fiveSigmaDepth) threshold for fltpair, default [5, 5]
+        colname: columns
+        fltpair: filter pair, eg. ['r', 'i']
+        mag_lim: list, signal to noise ratio (fiveSigmaDepth) threshold for fltpair, default [5, 5]
         filename: output a csv table for time gaps of each field
+        Nvth: dictionary of threshold of number of visits eg.{'uu':1700}
+        dataout: True, returns a dict for each field, or False, float number 
     
     """
 
@@ -178,7 +185,7 @@ class filterPairTGapsFootprintMetric(metrics.BaseMetric):
         fieldDec = np.mean(dataSlice['fieldDec']),
         
         # check whether number of visits is above threshold
-        check = len(dT_lim) >=self.Nvth[f0+f1]
+        check = len(dT_tlim) >=self.Nvth[f0+f1]
        
         if self.save_dT:
             dic = {'Nrun': self.Nrun, 
@@ -211,5 +218,5 @@ class filterPairTGapsFootprintMetric(metrics.BaseMetric):
             #f1 = self.fltpair[1]
             
             #result = np.min(dT) if len(dT)!=0 else np.inf
-            
+            result = check
             return float(result) 

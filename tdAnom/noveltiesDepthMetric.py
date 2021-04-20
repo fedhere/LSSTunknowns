@@ -1,3 +1,7 @@
+#### Written by Xiaolong Li @xiaolng for paper https://www.overleaf.com/read/fgbxzbrnmsyg
+### this metric is discussed in Section 4 Depth metric
+### Original version April 2021
+
 import numpy as np
 import pandas as pd
 
@@ -11,12 +15,12 @@ class noveltiesDepthMetric(metrics.BaseMetric):
     depth 
     
     returns
-    fiveSigmaDepth - stretch_goal
+    median depth,
     
     Parameters:
         colname: 
         fltpair: filter pair, eg ['r', 'i']
-        snr_lim: list, signal to noise ratio (fiveSigmaDepth) threshold for fltpair, default [5, 5]
+        mag_lim: list, signal to noise ratio (fiveSigmaDepth) threshold for fltpair, default [5, 5]
         filename: output a csv table for time gaps of each field
     
     """
