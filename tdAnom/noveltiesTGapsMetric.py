@@ -1,5 +1,5 @@
-#### Written by Xiaolong Li @xiaolng for PAPER LINK
-### this metric is discussed in Section XX
+#### Written by Xiaolong Li @xiaolng for https://www.overleaf.com/read/fgbxzbrnmsyg
+### this metric is discussed in Section 3
 ### Original version April 2021
 
 
