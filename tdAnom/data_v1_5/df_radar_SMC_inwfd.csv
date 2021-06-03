@@ -1,4 +1,4 @@
-db,brightness,color,footprint,star density,depth,family
+db,flux change,color,footprint,star count,depth,family
 agnddf_v1.5_10yrs,0.0,0.0,0.0,0.0,0.0,agnddf
 alt_dust_v1.5_10yrs,0.7335105949401773,0.7326657932568803,0.5714285714285715,0.5430003575567908,1.0,alt
 alt_roll_mod2_dust_sdf_0.20_v1.5_10yrs,0.8640118304833387,1.0,0.5714285714285715,0.5543967387827726,0.8036990447483656,alt
