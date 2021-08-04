@@ -55,3 +55,40 @@ def get_df_norm(df=[], cols=['u'], fomcsv = 'df_tgapsFoM_GP.csv', mode=0, fmax=1
     
     return df_new
 
+def get_cols(dbfile, cols='night', lim=None):
+    """
+    cols = 'night, observationStartMJD, fieldRA, fieldDec, filter, proposalId, note'
+    connect to database
+    Returns: a pandas DataFrame
+    
+    Examples:
+    
+    cols = 'night, observationStartMJD, fieldRA, filter, fieldDec, proposalId, note, '
+
+    df = get_cols(dbfile=dbpath + db, cols=cols, lim='night<300')
+   
+    """
+    import sqlite3
+    import pandas as pd
+    connection = sqlite3.connect(dbfile)
+    cursor = connection.cursor()
+    
+    if lim!=None:
+        sqlstr = "SELECT {} FROM SummaryAllProps where {}".format(cols, lim)
+    else:
+        sqlstr = "SELECT {} FROM SummaryAllProps".format(cols)
+
+    print('connect to ', dbfile, '\n', sqlstr)
+    cursor.execute(sqlstr)
+    data = cursor.fetchall()
+    
+    # convert data to dataframe
+    data_df = pd.DataFrame(data, columns=cols.split(', '))
+    
+    # close connection
+    connection.close()
+    
+    return data_df
+
+
+
