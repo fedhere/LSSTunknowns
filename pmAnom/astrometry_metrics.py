@@ -235,7 +235,7 @@ class LSPMmetric(BaseMetric):
                 DeltaTs = []
                 while np.size(Times)>1:
                     for d in range(len(Times)-1):
-                        DeltaTs.append(Times[d]-Times[d+1])
+                        DeltaTs.append(np.absolute(Times[d]-Times[d+1]))
                     Times.remove(Times[0])
                 DeltaTs.sort()
                 DeltaTs = np.array(DeltaTs)
