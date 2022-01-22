@@ -247,15 +247,17 @@ class LSPMmetric(BaseMetric):
                         pa= np.random.uniform(0,2*np.pi,len(mu[selection]))
                         pm_alpha, pm_delta = mu[selection]*np.sin(pa), mu[selection]*np.cos(pa)
                         pm_un_alpha, pm_un_delta = muf[selection]*np.sin(pa), muf[selection]*np.cos(pa)                    
-                        p_min,p_max,p_mean = self.percentiles[0],self.percentiles[1],self.percentiles[2]
-                        Pm = np.exp(-((0.05*np.nanmedian(fwhm)-np.array(mu)[selection]*np.array(dt_pm)[selection,np.newaxis])/(0.67*np.nanmedian(fwhm))*np.nanmedian(snr[selection], axis=1))**2)
-                        L = norm.pdf(mu[selection])
-                        L_out = norm.pdf(muf[selection])
-                        Pm_out = np.exp(-((0.05*np.median(fwhm)-np.array(muf)[selection]*np.array(dt_pm)[selection,np.newaxis])/(0.67*np.nanmedian(fwhm))*np.nanmedian(snr[selection], axis=1))**2)
-                        #l_frac = np.log(signal.fftconvolve(L_out,Pm_out.flatten()))-np.log(signal.fftconvolve(L,Pm.flatten()))                      
-                        l_frac = np.log(np.abs(scipy.fft(L_out)*scipy.fft(Pm_out.flatten())))-np.log(np.abs(scipy.fft(L)*scipy.fft(Pm.flatten())))                                                  
+                        p_min,p_max,p_mean = self.percentiles[0],self.percentiles[1],self.percentiles[2]     
+                        mu = mu[selection]
+                        muf = muf[selection]
+                        sigmapm = sigmapm[selection]
+                        Pm = norm.pdf(mu,scale=sigmapm)
+                        L = pd.DataFrame([norm.pdf(mu[np.where(position[selection]==p)]) for p in ['H', 'D','B']]).sum(axis=0)
+                        L_out = pd.DataFrame([norm.pdf(muf[np.where(position[selection]==p)]) for p in ['H', 'D','B']]).sum(axis=0)
+                        Pm_out = norm.pdf(muf,scale=sigmapm)
+                        l_frac = np.log(signal.fftconvolve(L_out,Pm_out))-np.log(signal.fftconvolve(L,Pm))                      
                         unusual= np.shape(np.where(l_frac[~np.isnan(l_frac)]>0))[1]
-                        res= np.size(unusual)/np.size(selection)
+                        res= np.size(unusual)/np.size(selection)   
                         
 
                         fieldRA = np.mean(dataSlice['fieldRA']) 
