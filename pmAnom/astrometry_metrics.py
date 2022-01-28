@@ -172,7 +172,7 @@ class getDataMetric(metrics.BaseMetric):
 class LSPMmetric(BaseMetric): 
         def __init__(self, metricName='LSPMmetric',f='g',surveyduration=10,snr_lim=5,mag_lim=[17,25],percentiles=[2.5,97.5,50], 
                     U=np.arange(-100,100,25),V=np.arange(-100,100,25),W=np.arange(-100,100,25),unusual='uniform',m5Col='fiveSigmaDepth',  
-                    mjdCol='observationStartMJD',filterCol='filter', seeingCol='seeingFwhmGeom', nexp= 1,dataout=False, 
+                    mjdCol='observationStartMJD',filterCol='filter', seeingCol='seeingFwhmGeom', nexp= 1,gap_selection = False,dataout=False, 
                     **kwargs):
             '''
         mjdCol= MJD observations column name from Opsim database      (DEFAULT = observationStartMJD) 
@@ -197,6 +197,7 @@ class LSPMmetric(BaseMetric):
             self.U=U 
             self.V=V 
             self.W=W 
+            self.gap_selection = gap_selection
             self.dataout = dataout 
              # to have as output all the simulated observed data set dataout=True, otherwise the relative error for  
              # each helpix is estimated 
@@ -231,19 +232,19 @@ class LSPMmetric(BaseMetric):
                 sigmapm=sigma_slope_arr(dataSlice[self.mjdCol][obs], precis)*365.25*1e3
 
                 #select the objects which displacement can be detected
-                Times = list(mjd)
-                DeltaTs = []
-                while np.size(Times)>1:
-                    for d in range(len(Times)-1):
-                        DeltaTs.append(np.absolute(Times[d]-Times[d+1]))
-                    Times.remove(Times[0])
-                DeltaTs.sort()
-                DeltaTs = np.array(DeltaTs)
-                if np.size(DeltaTs)>0:
-                    dt_pm = 0.05*np.median(dataSlice[self.seeingCol])/muf[np.unique(row)]
-                    selection = np.where((dt_pm>DeltaTs[0]) & (dt_pm<DeltaTs[-1]))
+                if self.gap_selection:
+                      Times = np.sort(mjd)
+                      DeltaTs = []                
+                      for d in range(len(Times)-1):
+                                 DeltaTs.append(np.absolute(Times-np.roll(Times,d+1)))   
+                      DeltaTs = np.concatenate(DeltaTs)
+                      if np.size(DeltaTs)>0:
+                                 dt_pm = 0.05*np.amin(dataSlice[self.seeingCol])/muf[np.unique(row)]
+                                 selection = np.where((dt_pm>DeltaTs[0]) & (dt_pm<DeltaTs[-1]))
+                else:
+                      selection = np.ones(np.size(mu),dtype=bool)
 
-                    if np.size(selection)>0:
+                if np.size(selection)>0:
                         pa= np.random.uniform(0,2*np.pi,len(mu[selection]))
                         pm_alpha, pm_delta = mu[selection]*np.sin(pa), mu[selection]*np.cos(pa)
                         pm_un_alpha, pm_un_delta = muf[selection]*np.sin(pa), muf[selection]*np.cos(pa)                    
