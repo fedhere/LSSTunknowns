@@ -221,7 +221,7 @@ class LSPMmetric(BaseMetric):
                 # select objects above the limit magnitude threshold 
                 snr = m52snr(M[:, np.newaxis],dataSlice[self.m5Col][obs])
                 row, col =np.where(snr>self.snr_lim)
-                precis = astrom_precision(dataSlice[self.seeingCol][obs], snr)
+                precis = astrom_precision(dataSlice[self.seeingCol][obs], snr[np.where(snr>self.snr_lim)])
                 sigmapm=sigma_slope(dataSlice[self.mjdCol][obs], precis)*365.25*1e3
 
                 #select the objects which displacement can be detected
@@ -235,7 +235,7 @@ class LSPMmetric(BaseMetric):
                                  dt_pm = 0.05*np.amin(dataSlice[self.seeingCol])/muf[np.unique(row)]
                                  selection = np.where((dt_pm>DeltaTs[0]) & (dt_pm<DeltaTs[-1]))
                 else:
-                      selection = np.ones(np.size(mu),dtype=bool)
+                      selection = np.unique(row)
 
                 if np.size(selection)>0:
                         pa= np.random.uniform(0,2*np.pi,len(mu[selection]))
@@ -369,7 +369,7 @@ class reducedPM(BaseMetric):
                         # select objects above the limit magnitude threshold 
                         snr = m52snr(mag[:, np.newaxis],dataSlice[self.m5Col][obs])
                         row, col =np.where(snr>self.snr_lim)
-                        precis = astrom_precision(dataSlice[self.seeingCol][obs], snr)
+                        precis = astrom_precision(dataSlice[self.seeingCol][obs], snr[np.where(snr>self.snr_lim)])
                         sigmapm=sigma_slope(dataSlice[self.mjdCol][obs], precis)*365.25*1e3
 
                         #select the objects which displacement can be detected
@@ -383,7 +383,7 @@ class reducedPM(BaseMetric):
                                          dt_pm = 0.05*np.amin(dataSlice[self.seeingCol])/muf[np.unique(row)]
                                          selection = np.where((dt_pm>DeltaTs[0]) & (dt_pm<DeltaTs[-1]))
                         else:
-                               selection = np.ones(np.size(mu),dtype=bool)
+                               selection = np.unique(row)
                         
 
                             if self.real_data:
@@ -471,7 +471,7 @@ class TransienPM(BaseMetric):
             if (self.f in flt):
                 snr = m52snr(mag[:, np.newaxis],dataSlice[self.m5Col][obs])
                 row, col =np.where(snr>self.snr_lim)
-                precis = astrom_precision(dataSlice[self.seeingCol][obs], snr)
+                precis = astrom_precision(dataSlice[self.seeingCol][obs], snr[np.where(snr>self.snr_lim)])
                 sigmapm=sigma_slope(dataSlice[self.mjdCol][obs], precis)*365.25*1e3
 
                 #select the objects which displacement can be detected
@@ -485,7 +485,7 @@ class TransienPM(BaseMetric):
                                  dt_pm = 0.05*np.amin(dataSlice[self.seeingCol])/muf[np.unique(row)]
                                  selection = np.where((dt_pm>DeltaTs[0]) & (dt_pm<DeltaTs[-1]))
                 else:
-                      selection = np.ones(np.size(mu),dtype=bool)
+                      selection = np.unique(row)
 
                     objRate = 0.7 # how many go off per day
                     nObj=np.size(pm[selection])
