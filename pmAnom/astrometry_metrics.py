@@ -18,7 +18,7 @@ import lsst.sims.maf.metricBundles as metricBundles
 import lsst.sims.maf.db as db
 import lsst.sims.maf.plots as plots
 from lsst.sims.maf.utils.mafUtils import radec2pix
-from lsst.sims.maf.utils import m52snr, astrom_precision
+from lsst.sims.maf.utils import m52snr, astrom_precision, sigma_slope
 sys.path.append('/home/idies/LSST_OpSim/Scripts_NBs/')
 from opsimUtils import *
 from itertools import product 
@@ -26,13 +26,6 @@ from itertools import product
 __all__ = ['sigma_slope_arr','DF','position_selection','simulate_pm','getDataMetric',
            'LSPMmetric','reducedPM','TransienPM','RPMD_plot',
            'find_confidence_interval','PMContourPlot']
-
-def sigma_slope_arr(x, sigmay):
-    w = 1./np.array(sigmay)**2
-    denom = np.sum(x)*np.sum(w*x**2,axis=1)-np.sum(w*x,axis=1)**2
-    denom[np.where(denom <= 0)]=np.nan
-    denom[np.where(denom > 0)] = np.sqrt(np.sum(w)*denom[np.where(denom > 0)]**-1 )
-    return denom
 
 
 def DF(V_matrix,mode,R,z): 
@@ -229,7 +222,7 @@ class LSPMmetric(BaseMetric):
                 snr = m52snr(M[:, np.newaxis],dataSlice[self.m5Col][obs])
                 row, col =np.where(snr>self.snr_lim)
                 precis = astrom_precision(dataSlice[self.seeingCol][obs], snr)
-                sigmapm=sigma_slope_arr(dataSlice[self.mjdCol][obs], precis)*365.25*1e3
+                sigmapm=sigma_slope(dataSlice[self.mjdCol][obs], precis)*365.25*1e3
 
                 #select the objects which displacement can be detected
                 if self.gap_selection:
@@ -377,20 +370,21 @@ class reducedPM(BaseMetric):
                         snr = m52snr(mag[:, np.newaxis],dataSlice[self.m5Col][obs])
                         row, col =np.where(snr>self.snr_lim)
                         precis = astrom_precision(dataSlice[self.seeingCol][obs], snr)
-                        sigmapm=sigma_slope_arr(dataSlice[self.mjdCol][obs], precis)*365.25*1e3
-                           
+                        sigmapm=sigma_slope(dataSlice[self.mjdCol][obs], precis)*365.25*1e3
+
                         #select the objects which displacement can be detected
-                        Times = list(mjd)
-                        DeltaTs = []
-                        while np.size(Times)>1:
-                            for d in range(len(Times)-1):
-                                DeltaTs.append(Times[d]-Times[d+1])
-                            Times.remove(Times[0])
-                        DeltaTs.sort()
-                        DeltaTs = np.array(DeltaTs)
-                        if np.size(DeltaTs)>0:
-                            dt_pm = 0.05*np.median(dataSlice[self.seeingCol])/pmnew[np.unique(row)]
-                            selection = np.where((dt_pm>DeltaTs[0]) & (dt_pm<DeltaTs[-1]))
+                        if self.gap_selection:
+                                Times = np.sort(mjd)
+                                DeltaTs = []                
+                                for d in range(len(Times)-1):
+                                         DeltaTs.append(np.absolute(Times-np.roll(Times,d+1)))   
+                                DeltaTs = np.concatenate(DeltaTs)
+                                if np.size(DeltaTs)>0:
+                                         dt_pm = 0.05*np.amin(dataSlice[self.seeingCol])/muf[np.unique(row)]
+                                         selection = np.where((dt_pm>DeltaTs[0]) & (dt_pm<DeltaTs[-1]))
+                        else:
+                               selection = np.ones(np.size(mu),dtype=bool)
+                        
 
                             if self.real_data:
                                 Hg = np.array(self.data['Hg'])[selection]
@@ -478,20 +472,20 @@ class TransienPM(BaseMetric):
                 snr = m52snr(mag[:, np.newaxis],dataSlice[self.m5Col][obs])
                 row, col =np.where(snr>self.snr_lim)
                 precis = astrom_precision(dataSlice[self.seeingCol][obs], snr)
-                sigmapm=sigma_slope_arr(dataSlice[self.mjdCol][obs], precis)*365.25*1e3
+                sigmapm=sigma_slope(dataSlice[self.mjdCol][obs], precis)*365.25*1e3
 
                 #select the objects which displacement can be detected
-                Times = list(mjd)
-                DeltaTs = []
-                while np.size(Times)>1:
-                    for d in range(len(Times)-1):
-                        DeltaTs.append(Times[d]-Times[d+1])
-                    Times.remove(Times[0])
-                dt_pm = 0.05*np.median(dataSlice[self.seeingCol])/pm[np.unique(row)]
-                DeltaTs.sort()
-                DeltaTs = np.array(DeltaTs)
-                if np.size(DeltaTs)>0:
-                    selection = np.where((dt_pm>DeltaTs[0]) & (dt_pm<DeltaTs[-1]))
+                if self.gap_selection:
+                      Times = np.sort(mjd)
+                      DeltaTs = []                
+                      for d in range(len(Times)-1):
+                                 DeltaTs.append(np.absolute(Times-np.roll(Times,d+1)))   
+                      DeltaTs = np.concatenate(DeltaTs)
+                      if np.size(DeltaTs)>0:
+                                 dt_pm = 0.05*np.amin(dataSlice[self.seeingCol])/muf[np.unique(row)]
+                                 selection = np.where((dt_pm>DeltaTs[0]) & (dt_pm<DeltaTs[-1]))
+                else:
+                      selection = np.ones(np.size(mu),dtype=bool)
 
                     objRate = 0.7 # how many go off per day
                     nObj=np.size(pm[selection])
