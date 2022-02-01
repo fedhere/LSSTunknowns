@@ -228,9 +228,9 @@ class LSPMmetric(BaseMetric):
                 if self.gap_selection:
                       Times = np.sort(mjd)
                       DeltaTs = []                
-                      for d in range(len(Times)-1):
-                                 DeltaTs.append(np.absolute(Times-np.roll(Times,d+1)))   
-                      DeltaTs = np.concatenate(DeltaTs)
+                      for d in np.arange(1,Times.size,1):
+                                 DeltaTs.append(np.absolute(Times-np.roll(Times,d))[d:])   
+                      DeltaTs = np.unique(DeltaTs)
                       if np.size(DeltaTs)>0:
                                  dt_pm = 0.05*np.amin(dataSlice[self.seeingCol])/muf[np.unique(row)]
                                  selection = np.where((dt_pm>DeltaTs[0]) & (dt_pm<DeltaTs[-1]))
@@ -376,9 +376,9 @@ class reducedPM(BaseMetric):
                         if self.gap_selection:
                                 Times = np.sort(mjd)
                                 DeltaTs = []                
-                                for d in range(len(Times)-1):
-                                         DeltaTs.append(np.absolute(Times-np.roll(Times,d+1)))   
-                                DeltaTs = np.concatenate(DeltaTs)
+                                for d in np.arange(1,Times.size,1):
+                                 DeltaTs.append(np.absolute(Times-np.roll(Times,d))[d:])   
+                                 DeltaTs = np.unique(DeltaTs)
                                 if np.size(DeltaTs)>0:
                                          dt_pm = 0.05*np.amin(dataSlice[self.seeingCol])/muf[np.unique(row)]
                                          selection = np.where((dt_pm>DeltaTs[0]) & (dt_pm<DeltaTs[-1]))
@@ -478,9 +478,9 @@ class TransienPM(BaseMetric):
                 if self.gap_selection:
                       Times = np.sort(mjd)
                       DeltaTs = []                
-                      for d in range(len(Times)-1):
-                                 DeltaTs.append(np.absolute(Times-np.roll(Times,d+1)))   
-                      DeltaTs = np.concatenate(DeltaTs)
+                      for d in np.arange(1,Times.size,1):
+                                 DeltaTs.append(np.absolute(Times-np.roll(Times,d))[d:])   
+                      DeltaTs = np.unique(DeltaTs)
                       if np.size(DeltaTs)>0:
                                  dt_pm = 0.05*np.amin(dataSlice[self.seeingCol])/muf[np.unique(row)]
                                  selection = np.where((dt_pm>DeltaTs[0]) & (dt_pm<DeltaTs[-1]))
