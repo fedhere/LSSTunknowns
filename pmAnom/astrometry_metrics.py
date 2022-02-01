@@ -221,7 +221,7 @@ class LSPMmetric(BaseMetric):
                 # select objects above the limit magnitude threshold 
                 snr = m52snr(M[:, np.newaxis],dataSlice[self.m5Col][obs])
                 row, col =np.where(snr>self.snr_lim)
-                precis = astrom_precision(dataSlice[self.seeingCol][obs], snr[np.where(snr>self.snr_lim)])
+                precis = astrom_precision(dataSlice[self.seeingCol][obs], snr[row,:] )
                 sigmapm=sigma_slope(dataSlice[self.mjdCol][obs], precis)*365.25*1e3
 
                 #select the objects which displacement can be detected
@@ -369,7 +369,7 @@ class reducedPM(BaseMetric):
                         # select objects above the limit magnitude threshold 
                         snr = m52snr(mag[:, np.newaxis],dataSlice[self.m5Col][obs])
                         row, col =np.where(snr>self.snr_lim)
-                        precis = astrom_precision(dataSlice[self.seeingCol][obs], snr[np.where(snr>self.snr_lim)])
+                        precis = astrom_precision(dataSlice[self.seeingCol][obs], snr[row,:])])
                         sigmapm=sigma_slope(dataSlice[self.mjdCol][obs], precis)*365.25*1e3
 
                         #select the objects which displacement can be detected
@@ -471,7 +471,7 @@ class TransienPM(BaseMetric):
             if (self.f in flt):
                 snr = m52snr(mag[:, np.newaxis],dataSlice[self.m5Col][obs])
                 row, col =np.where(snr>self.snr_lim)
-                precis = astrom_precision(dataSlice[self.seeingCol][obs], snr[np.where(snr>self.snr_lim)])
+                precis = astrom_precision(dataSlice[self.seeingCol][obs], snr[row,:])
                 sigmapm=sigma_slope(dataSlice[self.mjdCol][obs], precis)*365.25*1e3
 
                 #select the objects which displacement can be detected
