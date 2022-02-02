@@ -227,10 +227,9 @@ class LSPMmetric(BaseMetric):
                 #select the objects which displacement can be detected
                 if self.gap_selection:
                       Times = np.sort(mjd)
-                      DeltaTs = []                
-                      for d in np.arange(1,Times.size,1):
-                                 DeltaTs.append(np.absolute(Times-np.roll(Times,d))[d:])   
-                      DeltaTs = np.concatenate(DeltaTs)
+                      dt = np.array(list(combinations(Times,2)))
+                      DeltaTs = np.absolute(np.subtract(dt[:,0],dt[:,1]))            
+                      DeltaTs = np.unique(DeltaTs)
                       if np.size(DeltaTs)>0:
                                  dt_pm = 0.05*np.amin(dataSlice[self.seeingCol])/muf[np.unique(row)]
                                  selection = np.where((dt_pm>DeltaTs[0]) & (dt_pm<DeltaTs[-1]))
@@ -375,10 +374,9 @@ class reducedPM(BaseMetric):
                         #select the objects which displacement can be detected
                         if self.gap_selection:
                                 Times = np.sort(mjd)
-                                DeltaTs = []                
-                                for d in np.arange(1,Times.size,1):
-                                 DeltaTs.append(np.absolute(Times-np.roll(Times,d))[d:])   
-                                 DeltaTs = np.concatenate(DeltaTs)
+                                dt = np.array(list(combinations(Times,2)))
+                                DeltaTs = np.absolute(np.subtract(dt[:,0],dt[:,1]))            
+                                DeltaTs = np.unique(DeltaTs)
                                 if np.size(DeltaTs)>0:
                                          dt_pm = 0.05*np.amin(dataSlice[self.seeingCol])/muf[np.unique(row)]
                                          selection = np.where((dt_pm>DeltaTs[0]) & (dt_pm<DeltaTs[-1]))
@@ -477,10 +475,9 @@ class TransienPM(BaseMetric):
                 #select the objects which displacement can be detected
                 if self.gap_selection:
                       Times = np.sort(mjd)
-                      DeltaTs = []                
-                      for d in np.arange(1,Times.size,1):
-                                 DeltaTs.append(np.absolute(Times-np.roll(Times,d))[d:])   
-                      DeltaTs = np.concatenate(DeltaTs)
+                      dt = np.array(list(combinations(Times,2)))
+                      DeltaTs = np.absolute(np.subtract(dt[:,0],dt[:,1]))            
+                      DeltaTs = np.unique(DeltaTs)
                       if np.size(DeltaTs)>0:
                                  dt_pm = 0.05*np.amin(dataSlice[self.seeingCol])/muf[np.unique(row)]
                                  selection = np.where((dt_pm>DeltaTs[0]) & (dt_pm<DeltaTs[-1]))
