@@ -163,34 +163,21 @@ class getDataMetric(metrics.BaseMetric):
         return result
         
 class LSPMmetric(BaseMetric): 
-        def __init__(self, metricName='LSPMmetric',f='g',surveyduration=10,snr_lim=5,mag_lim=[17,25],percentiles=[2.5,97.5,50], 
-                    U=np.arange(-100,100,25),V=np.arange(-100,100,25),W=np.arange(-100,100,25),unusual='uniform',m5Col='fiveSigmaDepth',  
-                    mjdCol='observationStartMJD',filterCol='filter', seeingCol='seeingFwhmGeom', nexp= 1,gap_selection = False,dataout=False, 
+        def __init__(self, metricName='LSPMmetric',f='g',surveyduration=10,snr_lim=5, sigma_threshold=1,
+                    gap_selection=False,unusual='uniform',m5Col='fiveSigmaDepth', percentiles=[2.5,97.5,50], 
+                    mjdCol='observationStartMJD',filterCol='filter', seeingCol='seeingFwhmGeom',dataout=False, 
                     **kwargs):
-            '''
-        mjdCol= MJD observations column name from Opsim database      (DEFAULT = observationStartMJD) 
-        m5Col= Magnitude limit column name from Opsim database      (DEFAULT = fiveSigmaDepth)
-        filterCol= Filters column name from Opsim database      (DEFAULT = filter)
-        seeingCol = "Geometrical" full-width at half maximum.  (DEFAULT = seeingFwhmGeom)
-        f = filter for the observation
-        snr_lim = threshold for the signal to noise ratio   
-        percentiles = percentile limits to separate known motion from the anomalous one. 
-        
-            '''
             self.mjdCol = mjdCol 
             self.m5Col = m5Col 
             self.seeingCol = seeingCol 
             self.filterCol= filterCol 
             self.surveyduration =surveyduration 
-            self.percentiles = percentiles
             self.snr_lim = snr_lim 
-            self.mag_lim = mag_lim
-            self.f = f 
-            self.nexp = nexp 
-            self.U=U 
-            self.V=V 
-            self.W=W 
+            self.f = f  
+            self.sigma_threshold = sigma_threshold
+            self.percentiles = percentiles
             self.gap_selection = gap_selection
+            self.unusual=unusual
             self.dataout = dataout 
              # to have as output all the simulated observed data set dataout=True, otherwise the relative error for  
              # each helpix is estimated 
@@ -207,7 +194,31 @@ class LSPMmetric(BaseMetric):
             np.seterr(over='ignore',invalid='ignore')
          # typical velocity distribution from litterature (Binney et Tremain- Galactic Dynamics)
             
-                         
+        
+          
+        def sigma_slope(self,x, sigma_y):
+            """
+            Calculate the uncertainty in fitting a line, as
+            given by the spread in x values and the uncertainties
+            in the y values.
+
+            Parameters
+            ----------
+            x : numpy.ndarray
+                The x values of the data
+            sigma_y : numpy.ndarray
+                The uncertainty in the y values
+
+            Returns
+            -------
+            float
+                The uncertainty in the line fit
+            """
+            w = 1/sigma_y*1/sigma_y
+            denom = np.sum(w)*np.einsum('i,ij->j',x**2,w.T)-np.einsum('i,ij->j',x,w.T)**2
+            select= np.where(denom > 0)
+            res=np.sqrt(np.sum(w,axis=1)[select]/denom[select] )*365.25*1e3
+            return res                   
         def run(self, dataSlice, slicePoint=None): 
             np.random.seed(2500) 
             obs = np.where((dataSlice['filter']==self.f) & (dataSlice[self.mjdCol]<min(dataSlice[self.mjdCol])+365*self.surveyduration)) 
@@ -215,66 +226,58 @@ class LSPMmetric(BaseMetric):
             M = np.array(self.simobj['MAG'])
             mu = np.array(self.simobj['PM'])
             muf = np.array(self.simobj['PM_out'])
+            position = np.array(self.simobj['MODE'])
             mjd = dataSlice[self.mjdCol][obs]
+            fwhm = dataSlice[self.seeingCol][obs]
             if len(dataSlice[self.m5Col][obs])>2: 
                 
                 # select objects above the limit magnitude threshold 
                 snr = m52snr(M[:, np.newaxis],dataSlice[self.m5Col][obs])
-                row, col =np.where(snr>self.snr_lim)
-                precis = astrom_precision(dataSlice[self.seeingCol][obs], snr[row,:] )
-                sigmapm=sigma_slope(dataSlice[self.mjdCol][obs], precis)*365.25*1e3
-
-                #select the objects which displacement can be detected
+                row, col = np.where(snr>self.snr_lim)
                 if self.gap_selection:
-                      Times = np.sort(mjd)
-                      dt = np.array(list(combinations(Times,2)))
-                      DeltaTs = np.absolute(np.subtract(dt[:,0],dt[:,1]))            
-                      DeltaTs = np.unique(DeltaTs)
-                      if np.size(DeltaTs)>0:
+                    Times = np.sort(mjd)
+                    dt = np.array(list(combinations(Times,2)))
+                    DeltaTs = np.absolute(np.subtract(dt[:,0],dt[:,1]))            
+                    DeltaTs = np.unique(DeltaTs)
+                    if np.size(DeltaTs)>0:
                                  dt_pm = 0.05*np.amin(dataSlice[self.seeingCol])/muf[np.unique(row)]
-                                 selection = np.where((dt_pm>DeltaTs[0]) & (dt_pm<DeltaTs[-1]))
+                                 selection = np.where((dt_pm>min(DeltaTs)) & (dt_pm<max(DeltaTs)))
                 else:
                       selection = np.unique(row)
+                precis = astrom_precision(dataSlice[self.seeingCol][obs], snr[row,:])
+                sigmapm= self.sigma_slope(dataSlice[self.mjdCol][obs], precis)*365.25*1e3
 
                 if np.size(selection)>0:
-                        pa= np.random.uniform(0,2*np.pi,len(mu[selection]))
-                        pm_alpha, pm_delta = mu[selection]*np.sin(pa), mu[selection]*np.cos(pa)
-                        pm_un_alpha, pm_un_delta = muf[selection]*np.sin(pa), muf[selection]*np.cos(pa)                    
-                        p_min,p_max,p_mean = self.percentiles[0],self.percentiles[1],self.percentiles[2]     
-                        mu = mu[selection]
-                        muf = muf[selection]
-                        sigmapm = sigmapm[selection]
-                        Pm = norm.pdf(mu,scale=sigmapm)
-                        L = pd.DataFrame([norm.pdf(mu[np.where(position[selection]==p)]) for p in ['H', 'D','B']]).sum(axis=0)
-                        L_out = pd.DataFrame([norm.pdf(muf[np.where(position[selection]==p)]) for p in ['H', 'D','B']]).sum(axis=0)
-                        Pm_out = norm.pdf(muf,scale=sigmapm)
-                        l_frac = np.log(signal.fftconvolve(L_out,Pm_out))-np.log(signal.fftconvolve(L,Pm))                      
-                        unusual= np.shape(np.where(l_frac[~np.isnan(l_frac)]>0))[1]
-                        res= np.size(unusual)/np.size(selection)   
-                        
-
-                        fieldRA = np.mean(dataSlice['fieldRA']) 
-                        fieldDec = np.mean(dataSlice['fieldDec'])
-                        #dic = {'detected': res,
-                        #        'pixID': radec2pix(nside=16, ra=np.radians(fieldRA), dec=np.radians(fieldDec))}  
-                        dic= {'detected': res,
-                              'pixID': radec2pix(nside=16, ra=np.radians(fieldRA), dec=np.radians(fieldDec)),
-                              'PM': pd.DataFrame({'pm_alpha':pm_alpha, 'pm_delta':pm_delta}),
-                              'PM_un': pd.DataFrame({'pm_alpha':pm_un_alpha, 'pm_delta':pm_un_delta})}
-                                #'PM': np.array(mu)[selection], 
-                                #'PM_OUT': pm}
-                        if self.dataout:
-                            return dic 
-                        else: 
-                            return res
+                    pa= np.random.uniform(0,2*np.pi,len(mu[selection]))
+                    pm_alpha, pm_delta = mu[selection]*np.sin(pa), mu[selection]*np.cos(pa)
+                    pm_un_alpha, pm_un_delta = muf[selection]*np.sin(pa), muf[selection]*np.cos(pa)                    
+                    p_min,p_max,p_mean = self.percentiles[0],self.percentiles[1],self.percentiles[2]                    
+                    mu = mu[selection]
+                    muf = muf[selection]
+                    variance_k = np.array([np.std(muf[np.where(position[selection]==p)]) for p in ["['H']", "['D']","['B']"]])
+                    variance_mu = np.std(muf)
+                    sigmaL = np.sqrt(np.nanmax(variance_k)**2+variance_mu**2)
+                    unusual= np.where((muf<np.mean(muf)-self.sigma_threshold* sigmaL/2) | (muf>np.mean(muf)+self.sigma_threshold* sigmaL/2))             
+                    res= np.size(unusual)/np.size(selection)
+                    fieldRA = np.mean(dataSlice['fieldRA']) 
+                    fieldDec = np.mean(dataSlice['fieldDec'])
+                    #dic = {'detected': res,
+                    #        'pixID': radec2pix(nside=16, ra=np.radians(fieldRA), dec=np.radians(fieldDec))}  
+                    dic= {'detected': res,
+                          'pixID': radec2pix(nside=16, ra=np.radians(fieldRA), dec=np.radians(fieldDec)),
+                          'PM': pd.DataFrame({'pm_alpha':pm_alpha, 'pm_delta':pm_delta}),
+                          'PM_un': pd.DataFrame({'pm_alpha':pm_un_alpha, 'pm_delta':pm_un_delta})}
+                            #'PM': np.array(mu)[selection], 
+                            #'PM_OUT': pm}
+                    if self.dataout:
+                        return dic 
+                    else: 
+                        return res
           
           
 
 
 class reducedPM(BaseMetric): 
-        '''
-        The metric analyse the accuracy of the measure for anomalous structure in the reduced proper motion diagram.  
-        '''
     
         def readfile(self, filename='', colsname=['']): 
             if 'csv' in filename: 
@@ -298,20 +301,8 @@ class reducedPM(BaseMetric):
             return data 
         
         def __init__(self, filename = 'data.csv', snr_lim=5,mode=None, MagIterLim=[0,1,1], surveyduration=10,
-                      metricName='reducedPM',m5Col='fiveSigmaDepth',real_data= True,
-                      mjdCol='observationStartMJD',filterCol='filter', seeingCol='seeingFwhmGeom',dataout=True,**kwargs):
-            '''
-        filename = name of the file with the data of the stellar structure
-        snr_lim = threshold for the signal to noise ratio  
-        MagIterLim= array with max, min and the step for the magnitude variation array. 
-                    It is use to simulate denser enviroments or more distante structures.
-        surveyduration = the duration of the survey
-        mjdCol= MJD observations column name from Opsim database      (DEFAULT = observationStartMJD) 
-        m5Col= Magnitude limit column name from Opsim database      (DEFAULT = fiveSigmaDepth)
-        filterCol= Filters column name from Opsim database      (DEFAULT = filter)
-        seeingCol = "Geometrical" full-width at half maximum.  (DEFAULT = seeingFwhmGeom)
-        real_data = if "False" the data are assumed to be generated with simulate_pm module.
-            '''
+                      metricName='reducedPM',m5Col='fiveSigmaDepth',gap_selection=False,real_data= True,
+                      mjdCol='observationStartMJD',filterCol='filter', seeingCol='seeingFwhmGeom',dataout=True,**kwargs): 
             self.mjdCol = mjdCol 
             self.m5Col = m5Col 
             self.seeingCol = seeingCol 
@@ -320,6 +311,7 @@ class reducedPM(BaseMetric):
             self.filename = filename  
             self.dataout = dataout 
             self.mode = mode 
+            self.gap_selection=gap_selection
             self.MagIterLim = MagIterLim 
             self.surveyduration = surveyduration 
             self.real_data = real_data
@@ -343,6 +335,29 @@ class reducedPM(BaseMetric):
             table = data_sag93[1].data    
             mu_sag= np.transpose([table['MUX'],table['MUY']])
             self.mu_sag=mu_sag
+        def sigma_slope(self,x, sigma_y):
+            """
+            Calculate the uncertainty in fitting a line, as
+            given by the spread in x values and the uncertainties
+            in the y values.
+
+            Parameters
+            ----------
+            x : numpy.ndarray
+                The x values of the data
+            sigma_y : numpy.ndarray
+                The uncertainty in the y values
+
+            Returns
+            -------
+            float
+                The uncertainty in the line fit
+            """
+            w = 1/sigma_y*1/sigma_y
+            denom = np.sum(w)*np.einsum('i,ij->j',x**2,w.T)-np.einsum('i,ij->j',x,w.T)**2
+            select= np.where(denom > 0)
+            res=np.sqrt(np.sum(w,axis=1)[select]/denom[select] )*365.25*1e3
+            return res                   
         def run(self, dataSlice, slicePoint=None): 
             pm = np.array(self.data['PM_OUT'])
             mag = np.array(self.data['MAG'])
@@ -354,10 +369,10 @@ class reducedPM(BaseMetric):
                 
                     if self.mode == 'distance': 
                         pmnew= pm/(10**(dm/5)) 
-                        
+                        mag = mag+dm
                     elif self.mode == 'density': 
                         pmnew= pm 
-                        
+                        mag = mag + dm
                     else: 
                         print('##### ERROR: the metric is not implemented for this mode.')
                         
@@ -368,47 +383,50 @@ class reducedPM(BaseMetric):
                         # select objects above the limit magnitude threshold 
                         snr = m52snr(mag[:, np.newaxis],dataSlice[self.m5Col][obs])
                         row, col =np.where(snr>self.snr_lim)
-                        precis = astrom_precision(dataSlice[self.seeingCol][obs], snr[row,:])])
-                        sigmapm=sigma_slope(dataSlice[self.mjdCol][obs], precis)*365.25*1e3
-
-                        #select the objects which displacement can be detected
                         if self.gap_selection:
-                                Times = np.sort(mjd)
-                                dt = np.array(list(combinations(Times,2)))
-                                DeltaTs = np.absolute(np.subtract(dt[:,0],dt[:,1]))            
-                                DeltaTs = np.unique(DeltaTs)
-                                if np.size(DeltaTs)>0:
-                                         dt_pm = 0.05*np.amin(dataSlice[self.seeingCol])/muf[np.unique(row)]
-                                         selection = np.where((dt_pm>DeltaTs[0]) & (dt_pm<DeltaTs[-1]))
+                            Times = np.sort(mjd)
+                            dt = np.array(list(combinations(Times,2)))
+                            DeltaTs = np.absolute(np.subtract(dt[:,0],dt[:,1]))            
+                            DeltaTs = np.unique(DeltaTs)
+                            if np.size(DeltaTs)>0:
+                                         dt_pm = 0.05*np.amin(dataSlice[self.seeingCol])/pmnew[np.unique(row)]
+                                         selection = np.where((dt_pm>min(DeltaTs)) & (dt_pm<max(DeltaTs)))
                         else:
-                               selection = np.unique(row)
-                        
+                            selection = np.unique(row)
+                        precis = astrom_precision(dataSlice[self.seeingCol][obs], snr[row,:])
+                        sigmapm= self.sigma_slope(dataSlice[self.mjdCol][obs], precis)
 
-                            if self.real_data:
-                                Hg = np.array(self.data['Hg'])[selection]
-                                gr = np.array(self.data['g-r'])[selection] 
-                            else:
-                                colsname=['RA', 'DEC','MAG','g-r','Hg','PM_OUT','deltaX'] 
-                                color_dist = self.readfile('data.csv', colsname)
-                                gr = np.random.choice(color_dist['g-r'],size= np.size(selection))
-                                Hg = mag[selection]+5*np.log10(pm[selection])-10
+                        if self.real_data:
+                            Hg = np.array(self.data['Hg'])[selection]
+                            gr = np.array(self.data['g-r'])[selection] 
+                        else:
+                            colsname=['RA', 'DEC','MAG','g-r','Hg','PM_OUT','deltaX'] 
+                            color_dist = self.readfile('data.csv', colsname)
+                            gr = np.random.choice(color_dist['g-r'],size= np.size(selection))
+                            Hg = mag[selection]+5*np.log10(pm[selection])-10
 
-                            g= mag+dm 
-                            sigmapm[selection][np.isnan( sigmapm[selection])]=0
-                            sigmaHg = np.sqrt((g[selection]/m52snr(g[selection],np.median(dataSlice[self.m5Col])))**(2)+ (4.715*sigmapm[selection]/np.ceil(pmnew[selection]))**2) 
-                            sigmag = np.sqrt((g[selection]/m52snr(g[selection],np.median(dataSlice[self.m5Col])))**2+((g[selection]-gr)/m52snr((g[selection]-gr),np.median(dataSlice[self.m5Col])))**2)
-                            err_ellipse = np.pi*sigmaHg*sigmag
-                            
+                        g= mag+dm 
+
+                        sigmaHg = np.sqrt((g[selection]/m52snr(g[selection],np.median(dataSlice[self.m5Col])))**(2)+ (4.715*sigmapm[selection]/np.ceil(pmnew[selection]))**2) 
+                        sigmag = np.sqrt((g[selection]/m52snr(g[selection],np.median(dataSlice[self.m5Col])))**2+((g[selection]-gr)/m52snr((g[selection]-gr),np.median(dataSlice[self.m5Col])))**2)
+                        err_ellipse = np.pi*sigmaHg*sigmag
+                        if self.dataout:
                             CI = np.array([np.nansum((([gr-gcol ])/sigmag)**2 + ((Hg-h)/sigmaHg)**2 <= 1)/np.size(pmnew[selection]) for (gcol,h) in zip(gr,Hg)])                      
-                                         
-                            out[dm] = {'CI':CI,'alpha':np.size(pmnew[selection])/np.size(pmnew) ,'err':err_ellipse,'Hg':Hg,'gr':gr, 'sigmaHg':sigmaHg,'sigmagr':sigmag} 
+
+                            out[dm] = {'CI':CI,'alpha':np.size(pmnew[selection])/np.size(pmnew) ,'err':err_ellipse,'Hg':Hg,'gr':gr, 'sigmaHg':sigmaHg,'sigmagr':sigmag}
                         else:
+                            out[dm] = {'alpha':np.size(pmnew[selection])/np.size(pmnew) ,'err':err_ellipse}
+                    else:
+                        if self.dataout:
                             out[dm] = {'CI':0,'alpha':0,'err':0,'Hg':Hg,'gr':gr, 'sigmaHg':sigmaHg,'sigmagr':sigmag} 
+                        else:
+                            out[dm] = {'alpha':0 ,'err':0}
             if self.dataout: 
                 return out  
             else:
                 if ('g' in flt) and ('r' in flt):
-                    res = out[dm]['alpha']/np.mean(out[dm]['err'])
+                    res = out[dm]['alpha']/np.nanmean(out[dm]['err'][np.isfinite(out[dm]['err'])])
+                    
                     return res 
 
                 
@@ -418,15 +436,7 @@ class reducedPM(BaseMetric):
 class TransienPM(BaseMetric): 
      #    Generate a population of transient objects and see what is its proper motion  , 
     def __init__(self, metricName='TransienPM', f='g', snr_lim=5,m5Col='fiveSigmaDepth',  
-                  mjdCol='observationStartMJD',filterCol='filter',seeingCol='seeingFwhmGeom', surveyduration=10, **kwargs):
-            '''
-            mjdCol= MJD observations column name from Opsim database      (DEFAULT = observationStartMJD) 
-            m5Col= Magnitude limit column name from Opsim database      (DEFAULT = fiveSigmaDepth)
-            filterCol= Filters column name from Opsim database      (DEFAULT = filter)
-            seeingCol = "Geometrical" full-width at half maximum.  (DEFAULT = seeingFwhmGeom)
-            f = filter for the observation
-            snr_lim = threshold for the signal to noise ratio 
-            '''
+                  mjdCol='observationStartMJD',filterCol='filter',seeingCol='seeingFwhmGeom', surveyduration=10, **kwargs): 
             self.mjdCol = mjdCol 
             self.seeingCol= seeingCol 
             self.m5Col = m5Col 
@@ -434,7 +444,7 @@ class TransienPM(BaseMetric):
             self.snr_lim = snr_lim 
             self.f = f
             self.surveyduration = surveyduration  
-            sim = pd.read_csv('./simulation_pm.csv', usecols=['MAG','MODE','d','PM','PM_out'])
+            sim = pd.read_csv('/home/idies/workspace/Storage/fragosta/persistent/LSST_OpSim/Scripts_NBs/simulation_pm.csv', usecols=['MAG','MODE','d','PM','PM_out'])
             self.simobj = sim
             super(TransienPM, self).__init__(col=[self.mjdCol, self.m5Col,self.seeingCol, self.filterCol], 
                                                        units='Fraction Detected', 
@@ -453,11 +463,18 @@ class TransienPM(BaseMetric):
      #            Initial time (mjd) , 
      #        m_r_0 : float , 
      #            initial r-band brightness (mags) , 
-             lightcurve = np.zeros(np.size(t), dtype=float) + 99. 
+            #lightcurve = np.zeros((np.size(t), np.size(t0)), dtype=float) + 99.
+            T_matrix=np.ones((np.size(t0),np.size(t)))*t
+            T0s_matrix=np.ones((np.size(t),np.size(t0)))*t0
+            M = np.ones((np.size(t),np.size(t0)))*peak
+            S = np.ones((np.size(t),np.size(t0)))*slope
      # Select only times in the lightcurve duration window , 
-             good = np.where( (t >= t0) & (t <= t0+duration) ) 
-             lightcurve[good] = peak + slope*(t[good]-t0) 
-             return lightcurve 
+            T_good=np.where((T_matrix>=T0s_matrix.T) & (T_matrix<=np.array(T0s_matrix+duration).T),T_matrix,0) 
+            T0s_good=np.where((T_matrix.T>=T0s_matrix) & (T_matrix.T<=np.array(T0s_matrix+duration)),T0s_matrix,0)
+            M_good=np.where((T_matrix.T>=T0s_matrix) & (T_matrix.T<=np.array(T0s_matrix+duration)),M,0)
+            S_good=np.where((T_matrix.T>=T0s_matrix) & (T_matrix.T<=np.array(T0s_matrix+duration)),S,0)
+            lightcurve = M_good.T + S_good.T*(T_good-T0s_good.T) 
+            return lightcurve 
       
     def run(self,  dataSlice, slicePoint=None): 
             pm = np.array(self.simobj['PM_out'])
@@ -469,46 +486,39 @@ class TransienPM(BaseMetric):
             if (self.f in flt):
                 snr = m52snr(mag[:, np.newaxis],dataSlice[self.m5Col][obs])
                 row, col =np.where(snr>self.snr_lim)
-                precis = astrom_precision(dataSlice[self.seeingCol][obs], snr[row,:])
-                sigmapm=sigma_slope(dataSlice[self.mjdCol][obs], precis)*365.25*1e3
+                
+                Times = np.sort(mjd)
+                dt = np.array(list(combinations(Times,2)))
+                DeltaTs = np.absolute(np.subtract(dt[:,0],dt[:,1]))            
+                DeltaTs = np.unique(DeltaTs)
+                if np.size(DeltaTs)>0:
+                             dt_pm = 0.05*np.amin(dataSlice[self.seeingCol])/pm[np.unique(row)]
+                             selection = np.where((dt_pm>min(DeltaTs)) & (dt_pm<max(DeltaTs)))
 
-                #select the objects which displacement can be detected
-                if self.gap_selection:
-                      Times = np.sort(mjd)
-                      dt = np.array(list(combinations(Times,2)))
-                      DeltaTs = np.absolute(np.subtract(dt[:,0],dt[:,1]))            
-                      DeltaTs = np.unique(DeltaTs)
-                      if np.size(DeltaTs)>0:
-                                 dt_pm = 0.05*np.amin(dataSlice[self.seeingCol])/muf[np.unique(row)]
-                                 selection = np.where((dt_pm>DeltaTs[0]) & (dt_pm<DeltaTs[-1]))
-                else:
-                      selection = np.unique(row)
-
-                    objRate = 0.7 # how many go off per day
-                    nObj=np.size(pm[selection])
-                    m0s = mag[selection]
-                    t = dataSlice[self.mjdCol][obs] - dataSlice[self.mjdCol][obs].min() 
-                    detected = 0 
-             # Loop though each generated transient and decide if it was detected , 
-             # This could be a more complicated piece of code, for example demanding  , 
-             # A color measurement in a night. , 
-
-                    for i,t0 in enumerate(np.random.uniform(0,self.surveyduration,nObj)): 
-                        duration =dt_pm[selection][i]
-                        slope = np.random.uniform(-3,3) 
-                        lc = self.lightCurve(t, t0, m0s[i],duration, slope) 
-                        good = m52snr(lc,dataSlice[self.m5Col][obs])> self.snr_lim 
-                        detectTest = dataSlice[self.m5Col][obs] - lc 
-                        if detectTest.max() > 0 and len(good)>2: 
-                             detected += 1 
-                     # Return the fraction of transients detected , 
-                    if float(nObj) == 0:
-                        A = np.inf 
-                    else: 
-                        A=float(nObj) 
-                        res = float(np.sum(detected))/A            
-                        #print('detected fraction:{}'.format(res)) 
-                        return res
+                objRate = 0.7 # how many go off per day
+                nObj=np.size(pm[selection])
+                m0s = mag[selection]
+                t = dataSlice[self.mjdCol][obs] - dataSlice[self.mjdCol].min() 
+                detected = 0 
+         # Loop though each generated transient and decide if it was detected , 
+         # This could be a more complicated piece of code, for example demanding  , 
+         # A color measurement in a night. , 
+                durations = dt_pm[selection]
+                slopes = np.random.uniform(-3,3,np.size(selection))
+                t0s = np.random.uniform(0,self.surveyduration,nObj)
+                lcs = self.lightCurve(t, t0s, m0s,durations, slopes) 
+                good = m52snr(lcs,dataSlice[self.m5Col][obs])> self.snr_lim
+                detectedTest = good.sum(axis=0)
+                detected = np.sum(detectedTest>2)
+                
+                 # Return the fraction of transients detected , 
+                if float(nObj) == 0:
+                    A = np.inf 
+                else: 
+                    A=float(nObj) 
+                    res = float(detected)/A            
+                    #print('detected fraction:{}'.format(res)) 
+                    return res
                 
                 
                 
