@@ -256,7 +256,7 @@ class LSPMmetric(BaseMetric):
                     muf = muf[selection]
                     variance_k = np.array([np.std(muf[np.where(position[selection]==p)]) for p in ["['H']", "['D']","['B']"]])
                     variance_mu = np.std(muf)
-                    sigmaL = np.sqrt(np.nanmax(variance_k)**2+variance_mu**2)
+                    sigmaL = np.sqrt(np.prod(variance_k,where=np.isfinite(variance_k))**2+variance_mu**2)
                     unusual= np.where((muf<np.mean(muf)-self.sigma_threshold* sigmaL/2) | (muf>np.mean(muf)+self.sigma_threshold* sigmaL/2))             
                     res= np.size(unusual)/np.size(selection)
                     fieldRA = np.mean(dataSlice['fieldRA']) 
