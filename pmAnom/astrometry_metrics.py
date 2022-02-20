@@ -369,30 +369,8 @@ class LSPMmetric(BaseMetric):
           
 
 
-class reducedPM(BaseMetric): 
-    
-        def readfile(self, filename='', colsname=['']): 
-            if 'csv' in filename: 
-                #print('reading {}'.format(filename)) 
-                data = pd.read_csv(filename, header=0, names = colsname ) 
-            elif 'fits' in filename: 
-                 #print('reading {}'.format(filename)) 
-                hdul = fits.open(filename) 
-                data = hdul[1].data 
-            elif ['txt', 'dat'] in filename: 
-                #print('reading {}'.format(filename)) 
-                data = {k:[] for k in colsname} 
-                f = open(filename) 
-                righe = f.readlines() 
-                for line in righe: 
-                    line.split() 
-                    for i, k in enumerate(colsname): 
-                        data[k].append(float(line[i]))                 
-            elif 'json'in filename: 
-                print('not implemented to read .json extention') 
-            return data 
-        
-        def __init__(self, filename = 'data.csv', snr_lim=5,mode=None, MagIterLim=[0,1,1], surveyduration=10,
+class reducedPM(BaseMetric):         
+        def __init__(self, fits_filename = 'sa93.all.fits', snr_lim=5,mode=None, MagIterLim=[0,1,1], surveyduration=10,
                       metricName='reducedPM',m5Col='fiveSigmaDepth',gap_selection=False,real_data= True,
                       mjdCol='observationStartMJD',filterCol='filter', seeingCol='seeingFwhmGeom',dataout=True,**kwargs): 
             self.mjdCol = mjdCol 
@@ -400,7 +378,7 @@ class reducedPM(BaseMetric):
             self.seeingCol = seeingCol 
             self.filterCol = filterCol 
             self.snr_lim = snr_lim 
-            self.filename = filename  
+            self.fits_filename = fits_filename  
             self.dataout = dataout 
             self.mode = mode 
             self.gap_selection=gap_selection
@@ -416,17 +394,14 @@ class reducedPM(BaseMetric):
                 super(reducedPM, self).__init__(col=[self.mjdCol,self.filterCol,  self.m5Col,self.seeingCol, 'night' ], 
                                                             units='', metricDtype='float',metricName=metricName, 
                                                              **kwargs) 
-            if self.real_data:    
-                colsname=['RA', 'DEC','g','g-r','Hg','PM_OUT','deltaX'] 
-                self.data = self.readfile(self.filename, colsname)
-                self.data['MAG']=self.data['g']
-            else:
-                colsname=['MAG','MODE','d','PM','PM_OUT']
-                self.data = self.readfile(self.filename, colsname)
-            data_sag93 = fits.open('sa93.all.fits')
+            
+            data_sag93 = fits.open(self.fits_filename)
             table = data_sag93[1].data    
-            mu_sag= np.transpose([table['MUX'],table['MUY']])
-            self.mu_sag=mu_sag
+            mu_sag= np.transpose(np.sqrt(table['MUX']**2+table['MUY']**2))
+            M_sag = np.transpose(table['GMAG'])
+            self.mu_sag = mu_sag
+            self.mag_sag = M_sag
+            self.gr = np.transpose(table['GMAG']-table['RMAG'])
         def sigma_slope(self,x, sigma_y):
             """
             Calculate the uncertainty in fitting a line, as
@@ -451,8 +426,8 @@ class reducedPM(BaseMetric):
             res=np.sqrt(np.sum(w,axis=1)[select]/denom[select] )*365.25*1e3
             return res                   
         def run(self, dataSlice, slicePoint=None): 
-            pm = np.array(self.data['PM_OUT'])
-            mag = np.array(self.data['MAG'])
+            #pm = np.array(self.data['PM_OUT'])
+            #mag = np.array(self.data['MAG'])
             obs = np.where(dataSlice[self.mjdCol]<min(dataSlice[self.mjdCol])+365*self.surveyduration)
             
             deltamag= np.arange(self.MagIterLim[0],self.MagIterLim[1],self.MagIterLim[2])
@@ -460,11 +435,11 @@ class reducedPM(BaseMetric):
             for dm in deltamag: 
                 
                     if self.mode == 'distance': 
-                        pmnew= pm/(10**(dm/5)) 
-                        mag = mag+dm
+                        pmnew= self.mu_sag /(10**(dm/5)) 
+                        mag = self.mag_sag + dm
                     elif self.mode == 'density': 
-                        pmnew= pm 
-                        mag = mag + dm
+                        pmnew= self.mu_sag  
+                        mag = self.mag_sag + dm
                     else: 
                         print('##### ERROR: the metric is not implemented for this mode.')
                         
@@ -487,20 +462,9 @@ class reducedPM(BaseMetric):
                             selection = np.unique(row)
                         precis = astrom_precision(dataSlice[self.seeingCol][obs], snr[row,:])
                         sigmapm= self.sigma_slope(dataSlice[self.mjdCol][obs], precis)
-
-                        if self.real_data:
-                            Hg = np.array(self.data['Hg'])[selection]
-                            gr = np.array(self.data['g-r'])[selection] 
-                        else:
-                            colsname=['RA', 'DEC','MAG','g-r','Hg','PM_OUT','deltaX'] 
-                            color_dist = self.readfile('data.csv', colsname)
-                            gr = np.random.choice(color_dist['g-r'],size= np.size(selection))
-                            Hg = mag[selection]+5*np.log10(pm[selection])-10
-
-                        g= mag+dm 
-
-                        sigmaHg = np.sqrt((g[selection]/m52snr(g[selection],np.median(dataSlice[self.m5Col])))**(2)+ (4.715*sigmapm[selection]/np.ceil(pmnew[selection]))**2) 
-                        sigmag = np.sqrt((g[selection]/m52snr(g[selection],np.median(dataSlice[self.m5Col])))**2+((g[selection]-gr)/m52snr((g[selection]-gr),np.median(dataSlice[self.m5Col])))**2)
+                        Hg = mag[selection]+5*np.log10(pmnew[selection])-10
+                        sigmaHg = np.sqrt((mag[selection]/m52snr(mag[selection],np.median(dataSlice[self.m5Col])))**(2)+ (4.715*sigmapm[selection]/np.ceil(pmnew[selection]))**2) 
+                        sigmag = np.sqrt((mag[selection]/m52snr(mag[selection],np.median(dataSlice[self.m5Col])))**2+((mag[selection]-self.gr[selection])/m52snr((mag[selection]-self.gr[selection]),np.median(dataSlice[self.m5Col])))**2)
                         err_ellipse = np.pi*sigmaHg*sigmag
                         if self.dataout:
                             CI = np.array([np.nansum((([gr-gcol ])/sigmag)**2 + ((Hg-h)/sigmaHg)**2 <= 1)/np.size(pmnew[selection]) for (gcol,h) in zip(gr,Hg)])                      
@@ -519,7 +483,7 @@ class reducedPM(BaseMetric):
                 if ('g' in flt) and ('r' in flt):
                     res = out[dm]['alpha']/np.nanmean(out[dm]['err'][np.isfinite(out[dm]['err'])])
                     
-                    return res 
+                    return res  
 
                 
                 
