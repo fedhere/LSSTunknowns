@@ -7,7 +7,7 @@ class filterPairTGapsMetric(metrics.BaseMetric):
     Parameters:
         colname: list, ['observationStartMJD', 'filter', 'fiveSigmaDepth']
         fltpair: filter pair, eg ['r', 'i']
-        mag_lim: list, fiveSigmaDepth threshold each filter, default [5, 5]
+        mag_lim: list, fiveSigmaDepth threshold each filter, default [18, 18]
         dt_lim: list, [tmin, tmax], minimum and maximum of time gaps
         save_dT: boolean, save time gaps array as result if True
         allgaps: boolean, all possible pairs if True, else consider only nearest 
@@ -48,7 +48,6 @@ class filterPairTGapsMetric(metrics.BaseMetric):
 
         timeCol0 = timeCol0.reshape((len(timeCol0), 1))
         timeCol1 = timeCol1.reshape((len(timeCol1), 1))
-        
         
         # calculate time gaps matrix
         diffmat = np.subtract(timeCol0, timeCol1.T)
@@ -112,5 +111,3 @@ class filterPairTGapsMetric(metrics.BaseMetric):
     def reduce_tgaps_Nv(self, metric):
         return metric['Nv']
         
-
-
