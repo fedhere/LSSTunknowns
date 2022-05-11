@@ -1,6 +1,10 @@
 import numpy as np
-from lsst.sims.maf.utils import radec2pix
-import lsst.sims.maf.metrics as metrics
+#from lsst.sims.maf.utils import radec2pix
+#import lsst.sims.maf.metrics as metrics
+
+# if has rubin_sim installed
+from rubin_sim.maf.utils import radex2pix
+import rubin_sim.maf.metrics as metrics
 
 class filterPairTGapsMetric(metrics.BaseMetric):
     """
