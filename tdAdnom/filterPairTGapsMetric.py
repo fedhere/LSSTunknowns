@@ -24,7 +24,7 @@ class filterPairTGapsMetric(metrics.BaseMetric):
 
     def __init__(self, colname=['observationStartMJD', 'filter', 'fiveSigmaDepth'], 
                  fltpair=['r', 'i'], mag_lim=[18, 18], dt_lim=[0, 1.5/24], 
-                 save_dT=False, allgaps=True,  **kwargs):
+                 save_dT=False, allgaps=True, nside=16 **kwargs):
         self.colname = colname
         self.fltpair = fltpair
         self.mag_lim = mag_lim
@@ -32,6 +32,7 @@ class filterPairTGapsMetric(metrics.BaseMetric):
     
         self.save_dT = save_dT
         self.allgaps = allgaps
+        self.nside = nside
                         
         super().__init__(col=self.colname, **kwargs)
     
@@ -88,12 +89,14 @@ class filterPairTGapsMetric(metrics.BaseMetric):
         
         Nv = len(dT_lim)
         
-        fieldRA = np.mean(dataSlice['fieldRA']) ,
-        fieldDec = np.mean(dataSlice['fieldDec']),
+        fieldRA = np.mean(dataSlice['fieldRA']) 
+        fieldDec = np.mean(dataSlice['fieldDec'])
+        
+        pixId = radec2pix(nside=self.nside, ra=np.radians(fieldRA), dec=np.radians(fieldDec))
         
         if self.save_dT:
             result = {
-                'pixId': radec2pix(nside=16, ra=np.radians(fieldRA), dec=np.radians(fieldDec))[0],
+                'pixId': pixId,
                 'Nv': Nv,
                 'dT_lim': dT_lim,
                 'median': np.median(dT_lim),
@@ -101,7 +104,7 @@ class filterPairTGapsMetric(metrics.BaseMetric):
                   }
         else:
             result = {
-                'pixId': radec2pix(nside=16, ra=np.radians(fieldRA), dec=np.radians(fieldDec))[0],
+                'pixId': pixId,
                 'Nv': Nv,
                  'median': np.median(dT_lim)
                   }
