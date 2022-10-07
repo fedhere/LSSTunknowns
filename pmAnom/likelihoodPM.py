@@ -154,7 +154,7 @@ class LSPMmetric(BaseMetric):
             obs = np.where((dataSlice['filter']==self.f) & (dataSlice[self.mjdCol]<min(dataSlice[self.mjdCol])+365*self.surveyduration)) 
             d = np.array(self.simobj['d'])
             M = np.array(self.simobj['MAG'])
-            fieldRA, fieldDec = np.mean(dataSlice['fieldRA']), np.mean(dataSlice['fieldDec']) 
+            fieldRA, fieldDec = np.radians(np.mean(dataSlice['fieldRA'])), np.radians(np.mean(dataSlice['fieldDec'])) 
             z, R =d*np.sin(fieldRA), d*np.cos(fieldRA)
             component = self.position_selection(R,z)
             mjd = dataSlice[self.mjdCol][obs]
@@ -191,7 +191,7 @@ class LSPMmetric(BaseMetric):
                     DeltaTs = np.unique(DeltaTs)
                     if np.size(DeltaTs)>0:
                                  dt_pm = 0.05*np.amin(dataSlice[self.seeingCol][obs])/muf[np.unique(row)]
-                                 selection = np.where((dt_pm>min(DeltaTs)) & (dt_pm<max(DeltaTs)))
+                                 selection = np.where((dt_pm>min(DeltaTs)) & (dt_pm<max(DeltaTs))& (pm >sigmapm))
                 else:
                       selection = np.unique(row)
                 precis = astrom_precision(dataSlice[self.seeingCol][obs], snr[row,:])
