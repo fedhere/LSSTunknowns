@@ -21,7 +21,7 @@ from opsimUtils import *
 
 class reducedPM(BaseMetric):         
         def __init__(self, fits_filename = 'sa93.all.fits', snr_lim=5,mode=None, MagIterLim=[0,1,1], surveyduration=10,
-                      metricName='reducedPM',m5Col='fiveSigmaDepth',gap_selection=False,real_data= True,
+                      metricName='reducedPM',m5Col='fiveSigmaDepth',gap_selection=False, atm_err =0.01,
                       mjdCol='observationStartMJD',filterCol='filter', seeingCol='seeingFwhmGeom',dataout=True,**kwargs): 
             self.mjdCol = mjdCol 
             self.m5Col = m5Col 
@@ -34,7 +34,7 @@ class reducedPM(BaseMetric):
             self.gap_selection=gap_selection
             self.MagIterLim = MagIterLim 
             self.surveyduration = surveyduration 
-            self.real_data = real_data
+            self.atm_err = atm_err
              # to have as output all the simulated observed data set dataout=True, otherwise the relative error for  
              # each helpix is estimated 
             if self.dataout: 
@@ -52,39 +52,19 @@ class reducedPM(BaseMetric):
             self.mu_sag = mu_sag
             self.mag_sag = M_sag
             self.gr = np.transpose(table['GMAG']-table['RMAG'])
-        def sigma_slope(self,x, sigma_y):
-            """
-            Calculate the uncertainty in fitting a line, as
-            given by the spread in x values and the uncertainties
-            in the y values.
-
-            Parameters
-            ----------
-            x : numpy.ndarray
-                The x values of the data
-            sigma_y : numpy.ndarray
-                The uncertainty in the y values
-
-            Returns
-            -------
-            float
-                The uncertainty in the line fit
-            """
-            w = 1/sigma_y*1/sigma_y
-            denom = np.sum(w)*np.einsum('i,ij->j',x**2,w.T)-np.einsum('i,ij->j',x,w.T)**2
-            select= np.where(denom > 0)
-            res=np.sqrt(np.sum(w,axis=1)[select]/denom[select] )*365.25*1e3
-            return res                   
+                  
         def run(self, dataSlice, slicePoint=None): 
+            #pm = np.array(self.data['PM_OUT'])
+            #mag = np.array(self.data['MAG'])
             obs = np.where(dataSlice[self.mjdCol]<min(dataSlice[self.mjdCol])+365*self.surveyduration)
             
             deltamag= np.arange(self.MagIterLim[0],self.MagIterLim[1],self.MagIterLim[2])
             out = {}
             for dm in deltamag: 
-                
+                    print(f'mode={self.mode}')
                     if self.mode == 'distance': 
                         pmnew= self.mu_sag /(10**(dm/5)) 
-                        mag = self.mag_sag + dm
+                        mag = self.mag_sag +dm 
                     elif self.mode == 'density': 
                         pmnew= self.mu_sag  
                         mag = self.mag_sag + dm
@@ -93,33 +73,36 @@ class reducedPM(BaseMetric):
                         
                     mjd = dataSlice[self.mjdCol][obs]
                     flt = dataSlice[self.filterCol][obs]
-                    if ('g' in flt) and ('r' in flt):
-                        
+                    if ('g' in flt) and ('r' in flt):                        
                         # select objects above the limit magnitude threshold 
                         snr = m52snr(mag[:, np.newaxis],dataSlice[self.m5Col][obs])
-                        row, col =np.where(snr>self.snr_lim)
-                        if self.gap_selection:
-                            Times = np.sort(mjd)
-                            dt = np.array(list(combinations(Times,2)))
-                            DeltaTs = np.absolute(np.subtract(dt[:,0],dt[:,1]))            
-                            DeltaTs = np.unique(DeltaTs)
-                            if np.size(DeltaTs)>0:
-                                         dt_pm = 0.05*np.amin(dataSlice[self.seeingCol])/pmnew[np.unique(row)]
-                                         selection = np.where((dt_pm>min(DeltaTs)) & (dt_pm<max(DeltaTs)))
-                        else:
-                            selection = np.unique(row)
-                        precis = astrom_precision(dataSlice[self.seeingCol][obs], snr[row,:])
-                        sigmapm= self.sigma_slope(dataSlice[self.mjdCol][obs], precis)
-                        Hg = mag[selection]+5*np.log10(pmnew[selection])-10
-                        sigmaHg = np.sqrt((mag[selection]/m52snr(mag[selection],np.median(dataSlice[self.m5Col])))**(2)+ (4.715*sigmapm[selection]/np.ceil(pmnew[selection]))**2) 
-                        sigmag = np.sqrt((mag[selection]/m52snr(mag[selection],np.median(dataSlice[self.m5Col])))**2+((mag[selection]-self.gr[selection])/m52snr((mag[selection]-self.gr[selection]),np.median(dataSlice[self.m5Col])))**2)
+                        selection_mag =np.where(np.mean(snr,axis=0)>self.snr_lim)
+                        Times = np.sort(mjd)
+                        dt = np.array(list(combinations(Times,2)))
+                        DeltaTs = np.absolute(np.subtract(dt[:,0],dt[:,1]))            
+                        DeltaTs = np.unique(DeltaTs)
+                        displasement_error = astrom_precision(dataSlice[self.seeingCol][obs][selection_mag], np.mean(snr,axis=0)[selection_mag])
+                        displasement_error = np.sqrt(displasement_error**2 + self.atm_err**2)
+                        sigmapm = sigma_slope(dataSlice[self.mjdCol][obs][selection_mag], displasement_error)
+                        sigmapm *= 365.25*1e3
+                        print(f'sigmapm={sigmapm}')
+                        print(f'size pm ={np.size(pmnew)}')
+                        print(f'size selection_mag ={np.size(selection_mag)}')
+                        if np.size(DeltaTs)>0:
+                                     dt_pm = 0.05*np.amin(dataSlice[self.seeingCol][obs])/pmnew
+                                     selection_mag_pm = np.where((dt_pm>min(DeltaTs)) & (dt_pm<max(DeltaTs)) & (np.absolute(pmnew) >sigmapm) & (np.mean(snr,axis=1)>self.snr_lim))
+                        
+                        print(f'size selection_mag_pm ={np.size(selection_mag_pm)}')
+                        Hg = mag[selection_mag_pm]+5*np.log10(pmnew[selection_mag_pm])-10
+                        sigmaHg = np.sqrt((mag[selection_mag_pm]/m52snr(mag[selection_mag_pm],np.median(dataSlice[self.m5Col])))**(2)+ (4.715*sigmapm/pmnew[selection_mag_pm])**2) 
+                        sigmag = np.sqrt((mag[selection_mag_pm]/m52snr(mag[selection_mag_pm],np.median(dataSlice[self.m5Col])))**2+((mag[selection_mag_pm]-self.gr[selection_mag_pm])/m52snr((mag[selection_mag_pm]-self.gr[selection_mag_pm]),np.median(dataSlice[self.m5Col])))**2)
                         err_ellipse = np.pi*sigmaHg*sigmag
                         if self.dataout:
-                            CI = np.array([np.nansum((([gr-gcol ])/sigmag)**2 + ((Hg-h)/sigmaHg)**2 <= 1)/np.size(pmnew[selection]) for (gcol,h) in zip(gr,Hg)])                      
+                            CI = np.array([np.nansum((([self.gr[selection_mag_pm]-gcol ])/sigmag)**2 + ((Hg-h)/sigmaHg)**2 <= 1)/np.size(pmnew[selection_mag_pm]) for (gcol,h) in zip(self.gr[selection_mag_pm],Hg)])                      
 
-                            out[dm] = {'CI':CI,'alpha':np.size(pmnew[selection])/np.size(pmnew) ,'err':err_ellipse,'Hg':Hg,'gr':gr, 'sigmaHg':sigmaHg,'sigmagr':sigmag}
+                            out[dm] = {'CI':CI,'alpha':np.size(pmnew[selection_mag_pm])/np.size(pmnew) ,'err':err_ellipse,'Hg':Hg,'gr':self.gr[selection_mag_pm], 'sigmaHg':sigmaHg,'sigmagr':sigmag}
                         else:
-                            out[dm] = {'alpha':np.size(pmnew[selection])/np.size(pmnew) ,'err':err_ellipse}
+                            out[dm] = {'alpha':np.size(pmnew[selection_mag_pm])/np.size(pmnew) ,'err':err_ellipse}
                     else:
                         if self.dataout:
                             out[dm] = {'CI':0,'alpha':0,'err':0,'Hg':Hg,'gr':gr, 'sigmaHg':sigmaHg,'sigmagr':sigmag} 
@@ -129,5 +112,6 @@ class reducedPM(BaseMetric):
                 return out  
             else:
                 if ('g' in flt) and ('r' in flt):
-                    res = out[dm]['alpha']/np.nanmean(out[dm]['err'][np.isfinite(out[dm]['err'])])                    
+                    res = out[dm]['alpha']/np.nanmean(out[dm]['err'][np.isfinite(out[dm]['err'])])
+                    
                     return res 
