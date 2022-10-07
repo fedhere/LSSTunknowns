@@ -30,7 +30,7 @@ class TransienPM(BaseMetric):
             self.snr_lim = snr_lim 
             self.f = f
             self.surveyduration = surveyduration  
-            sim = pd.read_csv('/home/idies/workspace/Storage/fragosta/persistent/LSST_OpSim/Scripts_NBs/simulation_pm.csv', usecols=['MAG','MODE','d','PM','PM_out'])
+            sim = pd.read_csv('/home/idies/workspace/Temporary/fragosta/scratch/Scripts_NBs/simulation_pm.csv', usecols=['MAG','MODE','d','PM','PM_out'])
             self.simobj = sim
             super(TransienPM, self).__init__(col=[self.mjdCol, self.m5Col,self.seeingCol, self.filterCol], 
                                                        units='Fraction Detected', 
@@ -71,7 +71,10 @@ class TransienPM(BaseMetric):
             flt = dataSlice[self.filterCol][obs]
             if (self.f in flt):
                 snr = m52snr(mag[:, np.newaxis],dataSlice[self.m5Col][obs])
-                row, col =np.where(snr>self.snr_lim)
+                selection =np.where(np.mean(snr,axis=1)>self.snr_lim)
+                
+                precis = astrom_precision(dataSlice[self.seeingCol][obs], snr[selection,:])
+                sigmapm= sigma_slope(dataSlice[self.mjdCol][obs], precis)*365.25*1e3
                 
                 Times = np.sort(mjd)
                 dt = np.array(list(combinations(Times,2)))
@@ -79,11 +82,8 @@ class TransienPM(BaseMetric):
                     DeltaTs = np.absolute(np.subtract(dt[:,0],dt[:,1]))            
                     DeltaTs = np.unique(DeltaTs)
 
-                    dt_pm = 0.05*np.amin(dataSlice[self.seeingCol])/pm[np.unique(row)]
-                    selection = np.where((dt_pm>min(DeltaTs)) & (dt_pm<max(DeltaTs)))
-
-                #precis = astrom_precision(dataSlice[self.seeingCol][obs], snr[row,:])
-                #sigmapm= sigma_slope(dataSlice[self.mjdCol][obs], precis)*365.25*1e3
+                    dt_pm = 0.05*np.amin(dataSlice[self.seeingCol])/pm[np.unique(selection)]
+                    selection = np.where((dt_pm>min(DeltaTs)) & (dt_pm<max(DeltaTs)) & (pm[np.unique(selection)] >sigmapm) )
 
                     objRate = 0.7 # how many go off per day
                     nObj=np.size(pm[selection])
@@ -95,19 +95,12 @@ class TransienPM(BaseMetric):
              # A color measurement in a night. , 
                     durations = dt_pm[selection]
                     slopes = np.random.uniform(-3,3,np.size(selection))
-                    t0s = np.random.uniform(0,self.surveyduration,nObj)
+                    t0s = np.random.uniform(0,np.amin(dataSlice[self.mjdCol])+365*self.surveyduration,nObj)
                     lcs = self.lightCurve(t, t0s, m0s,durations, slopes) 
                     good = m52snr(lcs,dataSlice[self.m5Col][obs])> self.snr_lim
                     detectedTest = good.sum(axis=0)
                     detected = np.sum(detectedTest>2)
-                    #for i,t0 in enumerate(np.random.uniform(0,self.surveyduration,nObj)): 
-                    #    duration =dt_pm[selection][i]
-                    #    slope = np.random.uniform(-3,3) 
-                    #    lc = self.lightCurve(t, t0, m0s[i],duration, slope) 
-                    #    good = m52snr(lc,dataSlice[self.m5Col][obs])> self.snr_lim 
-                    #    detectTest = dataSlice[self.m5Col][obs] - lc 
-                    #    if detectTest.max() > 0 and len(good)>2: 
-                    #         detected += 1 
+                    
                      # Return the fraction of transients detected , 
                     if float(nObj) == 0:
                         A = np.inf 
