@@ -1,5 +1,8 @@
+import numpy as np
 import pandas as pd
 from scipy.stats import *
+from astropy import units as u
+from astropy.coordinates import SkyCoord
 ### LSST dependencies
 from lsst.sims.maf.metrics import BaseMetric
 from lsst.sims.maf.utils.mafUtils import radec2pix
@@ -117,17 +120,22 @@ class LSPMmetric(BaseMetric):
                 -k * Jz / (sigmar0 * np.exp(2 * q * (120 - R[iD, np.newaxis]) / Rd)) ** 2) / (
                        np.pi * k * sigmar0 * np.exp(2 * q * (120 - R[iD, np.newaxis]) / Rd))        #probability velocity distribution function from Binney 2010
         return P
-
+    def coor_gal(self,Ra,Dec,d):
+        c = SkyCoord(ra=Ra*u.degree, dec=Dec*u.degree, distance=d*u.pc)
+        z = c.cylindrical.z.value
+        R = c.cylindrical.rho.value
+        return z,R
     def run(self, dataSlice, slicePoint=None):
         np.random.seed(2500)
         ''' simulation of the measured proper motion '''
-        sigma_slope = np.vectorize(sigma_slope)
+        #sigma_slope_ = np.vectorize(sigma_slope)
         obs = np.where((dataSlice['filter'] == self.f) & (
         dataSlice[self.mjdCol] < min(dataSlice[self.mjdCol]) + 365 * self.surveyduration))  #select the observations in the reference filter within the survey duration
         d = np.array(self.simobj['d'])
         M = np.array(self.simobj['MAG'])
         fieldRA, fieldDec = np.radians(np.mean(dataSlice['fieldRA'])), np.radians(np.mean(dataSlice['fieldDec'])) #galaxtic coordinates
-        z, R = d * np.sin(np.radians(fieldRA)), d * np.cos(np.radians(fieldRA)) #azimuthal and radial component of the 3Dvector for the position of the star
+        #z, R = d * np.sin(np.radians(fieldRA)), d * np.cos(np.radians(fieldRA)) #azimuthal and radial component of the 3Dvector for the position of the star
+        z,R = self.coor_gal(np.mean(dataSlice['fieldRA']),np.mean(dataSlice['fieldDec']),d)
         gal_com = self.position_selection(R, z) #estimate if the star is in the Halo, the Bulge or Disk
         mjd = dataSlice[self.mjdCol][obs]
         fwhm = dataSlice[self.seeingCol][obs]
@@ -152,38 +160,40 @@ class LSPMmetric(BaseMetric):
         direction = np.random.choice((-1, 1))  #select the direction of the proper motion
         mu = direction * vT / 4.75 / d          #estimate the proper motion of the usual population
         mu_unusual = direction * vT_unusual / 4.75 / d  #estimate the proper motion of the unusual population
-
+        
         if len(dataSlice[self.m5Col][obs]) > 2:
 
 
             snr = m52snr(M[:, np.newaxis], dataSlice[self.m5Col][obs])  # select objects above the limit magnitude threshold whatever the magnitude of the star is
             row, col = np.where(snr > self.snr_lim) #select the snr above the threshold
+            precis = astrom_precision(dataSlice[self.seeingCol][obs], snr[row, :])  #estimate the uncertainties on the position
+            sigmapm = sigma_slope(dataSlice[self.mjdCol][obs], precis) * 365.25 * 1e3   #estimate the uncertainties on the proper motion
+            
             Times = np.sort(mjd)
             dt = np.array(list(combinations(Times, 2)))
             DeltaTs = np.absolute(np.subtract(dt[:, 0], dt[:, 1])) #estimate all the possible time gaps given the dates of the observations
             DeltaTs = np.unique(DeltaTs)
-            if np.size(DeltaTs) > 0:
-                dt_pm = 0.05 * np.amin(dataSlice[self.seeingCol][obs]) / muf[np.unique(row)] # time gap of the motion given the proper motion
-                selection = np.where((dt_pm > min(DeltaTs)) & (dt_pm < max(DeltaTs)) & (pm > sigmapm)) #select measurable proper motions
-            else:
-                selection = np.unique(row)   #select measurable proper motions
-            precis = astrom_precision(dataSlice[self.seeingCol][obs], snr[row, :])  #estimate the uncertainties on the position
-            sigmapm = sigma_slope(dataSlice[self.mjdCol][obs], precis) * 365.25 * 1e3   #estimate the uncertainties on the proper motion
-
-            if np.size(selection) > 0:
-                pa = np.random.uniform(0, 2 * np.pi, len(mu_unusual[selection])) #select the poition on the inclination with respect the line of sight
-                pm_alpha, pm_delta = mu[selection] * np.sin(pa), mu[selection] * np.cos(pa) #estimate the components of the proper motion for the usual population
-                pm_un_alpha, pm_un_delta = mu_unusual[selection] * np.sin(pa), mu_unusual[selection] * np.cos(pa)   #estimate the components of the proper motion for the unusual population
-                mu = mu[selection] * 1e3
-                mu_unusual = mu_unusual[selection] * 1e3
-                variance_k = np.array([np.std(mu[np.where(gal_com[selection] == p)]) for p in ['H', 'D', 'B']])
+            dt_pm = 0.05 * np.amin(dataSlice[self.seeingCol][obs]) / mu[np.unique(row)] # time gap of the motion given the proper motion
+            dt_pm_unusual = 0.05 * np.amin(dataSlice[self.seeingCol][obs]) / mu_unusual[np.unique(row)]
+            selection_usual = np.where((dt_pm > min(DeltaTs)) & (dt_pm < max(DeltaTs)) & (mu[np.unique(row)] > sigmapm)) #select measurable proper motions
+            selection_unusual = np.where((dt_pm_unusual > min(DeltaTs)) & (dt_pm_unusual < max(DeltaTs)) & (mu_unusual[np.unique(row)] > sigmapm)) 
+           #select measurable proper motions
+               
+            if (np.size(selection_usual) > 0) & (np.size(selection_unusual) > 0):
+                pa = np.random.uniform(0, 2 * np.pi, len(mu_unusual[selection_usual])) #select the poition on the inclination with respect the line of sight
+                pa_unusual = np.random.uniform(0, 2 * np.pi, len(mu_unusual[selection_unusual]))
+                pm_alpha, pm_delta = mu[selection_usual] * np.sin(pa), mu[selection_usual] * np.cos(pa) #estimate the components of the proper motion for the usual population
+                pm_un_alpha, pm_un_delta = mu_unusual[selection_unusual] * np.sin(pa_unusual), mu_unusual[selection_unusual] * np.cos(pa_unusual)   #estimate the components of the proper motion for the unusual population
+                mu = mu[selection_usual] * 1e3
+                mu_unusual = mu_unusual[selection_unusual] * 1e3
+                variance_k = np.array([np.std(mu[np.where(gal_com[selection_usual] == p)]) for p in ['H', 'D', 'B']])
                 variance_mu = np.std(mu)
                 sigmaL = np.sqrt(
                     np.prod(variance_k, where=np.isfinite(variance_k)) ** 2 + variance_mu ** 2 + np.nanmedian(
                         sigmapm) ** 2)  #estimate the variance of the likelihood distribution
                 unusual = np.where((mu_unusual < np.mean(mu_unusual) - self.sigma_threshold * sigmaL / 2) | (
                 mu_unusual > np.mean(mu_unusual) + self.sigma_threshold * sigmaL / 2))  #select the proper motion measurement outside the n*sigma limit
-                res = np.size(unusual) / np.size(selection) #estimate the fraction of unusual proper motion that we can identify as unusual
+                res = np.size(unusual) / np.size(selection_unusual) #estimate the fraction of unusual proper motion that we can identify as unusual
 
                 if self.dataout:
                     dic = {'detected': res,
