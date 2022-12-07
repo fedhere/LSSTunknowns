@@ -5,100 +5,100 @@ from lsst.sims.maf.metrics import BaseMetric
 from lsst.sims.maf.utils import m52snr, astrom_precision, sigma_slope
 from opsimUtils import *
 
-
-class reducedPM(BaseMetric):         
-        def __init__(self, fits_filename = 'sa93.all.fits', snr_lim=5,mode=None, MagIterLim=[0,1,1], surveyduration=10,
-                      metricName='reducedPM',m5Col='fiveSigmaDepth',gap_selection=False, atm_err =0.01,
-                      mjdCol='observationStartMJD',filterCol='filter', seeingCol='seeingFwhmGeom',dataout=True,**kwargs): 
+class TransienPM(BaseMetric): 
+     #    Generate a population of transient objects and see what is its proper motion  , 
+    def __init__(self, metricName='TransienPM', f='g', snr_lim=5,m5Col='fiveSigmaDepth',  
+                  mjdCol='observationStartMJD',filterCol='filter',seeingCol='seeingFwhmGeom', surveyduration=10, **kwargs): 
             self.mjdCol = mjdCol 
+            self.seeingCol= seeingCol 
             self.m5Col = m5Col 
-            self.seeingCol = seeingCol 
             self.filterCol = filterCol 
             self.snr_lim = snr_lim 
-            self.fits_filename = fits_filename  
-            self.dataout = dataout 
-            self.mode = mode 
-            self.gap_selection=gap_selection
-            self.MagIterLim = MagIterLim 
-            self.surveyduration = surveyduration 
-            self.atm_err = atm_err
-             # to have as output all the simulated observed data set dataout=True, otherwise the relative error for  
-             # each helpix is estimated 
-            if self.dataout: 
-                super(reducedPM, self).__init__(col=[self.mjdCol,self.filterCol, self.m5Col,self.seeingCol, 'night' ],metricDtype='object', units='', metricName=metricName, 
-                                                      **kwargs) 
-            else: 
-                super(reducedPM, self).__init__(col=[self.mjdCol,self.filterCol,  self.m5Col,self.seeingCol, 'night' ], 
-                                                            units='', metricDtype='float',metricName=metricName, 
-                                                             **kwargs) 
-            
-            data_sag93 = fits.open(self.fits_filename)
-            table = data_sag93[1].data    
-            mu_sag= np.transpose(np.sqrt(table['MUX']**2+table['MUY']**2))
-            M_sag = np.transpose(table['GMAG'])
-            self.mu_sag = mu_sag
-            self.mag_sag = M_sag
-            self.gr = np.transpose(table['GMAG']-table['RMAG'])
-                  
-        def run(self, dataSlice, slicePoint=None): 
-            #pm = np.array(self.data['PM_OUT'])
-            #mag = np.array(self.data['MAG'])
+            self.f = f
+            self.surveyduration = surveyduration  
+            sim = pd.read_csv('/home/idies/workspace/Temporary/fragosta/scratch/Scripts_NBs/simulation_pm.csv', usecols=['MAG','MODE','d','PM','PM_out'])
+            self.simobj = sim
+            super(TransienPM, self).__init__(col=[self.mjdCol, self.m5Col,self.seeingCol, self.filterCol], 
+                                                       units='Fraction Detected', 
+                                                       metricName=metricName, **kwargs) 
+      
+         # typical velocity distribution from litterature (Binney et Tremain- Galactic Dynamics) 
+      
+    def lightCurve(self, t, t0, peak, duration, slope): 
+     #      A simple top-hat light curve., 
+     #         
+     #        Parameters , 
+     #        ---------- , 
+     #        t : array , 
+     #            Times to generate lightcurve points (mjd) , 
+     #        t0 : float , 
+     #            Initial time (mjd) , 
+     #        m_r_0 : float , 
+     #            initial r-band brightness (mags) , 
+            #lightcurve = np.zeros((np.size(t), np.size(t0)), dtype=float) + 99.
+            T_matrix=np.ones((np.size(t0),np.size(t)))*t
+            T0s_matrix=np.ones((np.size(t),np.size(t0)))*t0
+            M = np.ones((np.size(t),np.size(t0)))*peak
+            S = np.ones((np.size(t),np.size(t0)))*slope
+     # Select only times in the lightcurve duration window , 
+            T_good=np.where((T_matrix>=T0s_matrix.T) & (T_matrix<=np.array(T0s_matrix+duration).T),T_matrix,0) 
+            T0s_good=np.where((T_matrix.T>=T0s_matrix) & (T_matrix.T<=np.array(T0s_matrix+duration)),T0s_matrix,0)
+            M_good=np.where((T_matrix.T>=T0s_matrix) & (T_matrix.T<=np.array(T0s_matrix+duration)),M,0)
+            S_good=np.where((T_matrix.T>=T0s_matrix) & (T_matrix.T<=np.array(T0s_matrix+duration)),S,0)
+            lightcurve = M_good.T + S_good.T*(T_good-T0s_good.T) 
+            return lightcurve 
+      
+    def run(self,  dataSlice, slicePoint=None): 
+            pm = np.array(self.simobj['PM_out'])
+            mag = np.array(self.simobj['MAG'])
             obs = np.where(dataSlice[self.mjdCol]<min(dataSlice[self.mjdCol])+365*self.surveyduration)
-            
-            deltamag= np.arange(self.MagIterLim[0],self.MagIterLim[1],self.MagIterLim[2])
-            out = {}
-            for dm in deltamag: 
-                    #print(f'mode={self.mode}')
-                    if self.mode == 'distance': 
-                        pmnew= self.mu_sag /(10**(dm/5)) 
-                        mag = self.mag_sag +dm 
-                    elif self.mode == 'density': 
-                        pmnew= self.mu_sag  
-                        mag = self.mag_sag + dm
-                    else: 
-                        print('##### ERROR: the metric is not implemented for this mode.')
-                        
-                    mjd = dataSlice[self.mjdCol][obs]
-                    flt = dataSlice[self.filterCol][obs]
-                    if ('g' in flt) and ('r' in flt):                        
-                        # select objects above the limit magnitude threshold 
-                        snr = m52snr(mag[:, np.newaxis],dataSlice[self.m5Col][obs])
-                        selection_mag =np.where(np.mean(snr,axis=0)>self.snr_lim)
-                        Times = np.sort(mjd)
-                        dt = np.array(list(combinations(Times,2)))
-                        DeltaTs = np.absolute(np.subtract(dt[:,0],dt[:,1]))            
-                        DeltaTs = np.unique(DeltaTs)
-                        displasement_error = astrom_precision(dataSlice[self.seeingCol][obs][selection_mag], np.mean(snr,axis=0)[selection_mag])
-                        displasement_error = np.sqrt(displasement_error**2 + self.atm_err**2)
-                        sigmapm = sigma_slope(dataSlice[self.mjdCol][obs][selection_mag], displasement_error)
-                        sigmapm *= 365.25*1e3
-                        #print(f'sigmapm={sigmapm}')
-                        #print(f'size pm ={np.size(pmnew)}')
-                        #print(f'size selection_mag ={np.size(selection_mag)}')
-                        if np.size(DeltaTs)>0:
-                                     dt_pm = 0.05*np.amin(dataSlice[self.seeingCol][obs])/pmnew
-                                     selection_mag_pm = np.where((dt_pm>min(DeltaTs)) & (dt_pm<max(DeltaTs)) & (np.absolute(pmnew) >sigmapm) & (np.mean(snr,axis=1)>self.snr_lim))
-                        
-                        #print(f'size selection_mag_pm ={np.size(selection_mag_pm)}')
-                        Hg = mag[selection_mag_pm]+5*np.log10(pmnew[selection_mag_pm])-10
-                        sigmaHg = np.sqrt((mag[selection_mag_pm]/m52snr(mag[selection_mag_pm],np.median(dataSlice[self.m5Col])))**(2)+ (4.715*sigmapm/pmnew[selection_mag_pm])**2) 
-                        sigmag = np.sqrt((mag[selection_mag_pm]/m52snr(mag[selection_mag_pm],np.median(dataSlice[self.m5Col])))**2+((mag[selection_mag_pm]-self.gr[selection_mag_pm])/m52snr((mag[selection_mag_pm]-self.gr[selection_mag_pm]),np.median(dataSlice[self.m5Col])))**2)
-                        err_ellipse = np.pi*sigmaHg*sigmag
-                        if self.dataout:
-                            CI = np.array([np.nansum((([self.gr[selection_mag_pm]-gcol ])/sigmag)**2 + ((Hg-h)/sigmaHg)**2 <= 1)/np.size(pmnew[selection_mag_pm]) for (gcol,h) in zip(self.gr[selection_mag_pm],Hg)])                      
+            np.random.seed(5000)
+            mjd = dataSlice[self.mjdCol][obs]
+            flt = dataSlice[self.filterCol][obs]
+            if (self.f in flt):
+                snr = m52snr(mag[:, np.newaxis],dataSlice[self.m5Col][obs])
+                selection =np.where(np.mean(snr,axis=1)>self.snr_lim)
+                precis = astrom_precision(dataSlice[self.seeingCol][obs], snr[selection,:])
+                sigmapm= sigma_slope(dataSlice[self.mjdCol][obs], precis)*365.25*1e3
+                
+                Times = np.sort(mjd)
+                dt = np.array(list(combinations(Times,2)))
+                if np.size(dt)>0:
+                    DeltaTs = np.absolute(np.subtract(dt[:,0],dt[:,1]))            
+                    DeltaTs = np.unique(DeltaTs)
 
-                            out[dm] = {'CI':CI,'alpha':np.size(pmnew[selection_mag_pm])/np.size(pmnew) ,'err':err_ellipse,'Hg':Hg,'gr':self.gr[selection_mag_pm], 'sigmaHg':sigmaHg,'sigmagr':sigmag}
-                        else:
-                            out[dm] = {'alpha':np.size(pmnew[selection_mag_pm])/np.size(pmnew) ,'err':err_ellipse}
-                    else:
-                        if self.dataout:
-                            out[dm] = {'CI':0,'alpha':0,'err':0,'Hg':Hg,'gr':gr, 'sigmaHg':sigmaHg,'sigmagr':sigmag} 
-                        else:
-                            out[dm] = {'alpha':0 ,'err':0}
-            if self.dataout: 
-                return out  
-            else:
-                if ('g' in flt) and ('r' in flt):
-                    res = out[dm]['alpha']/np.nanmean(out[dm]['err'][np.isfinite(out[dm]['err'])])
+                    dt_pm = 0.05*np.amin(dataSlice[self.seeingCol])/pm[np.unique(selection)]
+                    selection = np.where((dt_pm>min(DeltaTs)) & (dt_pm<max(DeltaTs)) & (pm[np.unique(selection)] >sigmapm) )
+                    objRate = 0.7 # how many go off per day
+                    nObj=np.size(pm[selection])
+                    m0s = mag[selection]
+                    t = dataSlice[self.mjdCol][obs] - dataSlice[self.mjdCol].min() 
+                    detected = 0 
+             # Loop though each generated transient and decide if it was detected , 
+             # This could be a more complicated piece of code, for example demanding  , 
+             # A color measurement in a night. , 
+                    durations = dt_pm[selection]
+                    slopes = np.random.uniform(-3,3,np.size(selection))
+                    t0s = np.random.uniform(0,np.amin(dataSlice[self.mjdCol])+365*self.surveyduration,nObj)
+                    lcs = self.lightCurve(t, t0s, m0s,durations, slopes) 
+                    good = m52snr(lcs,dataSlice[self.m5Col][obs])> self.snr_lim
+                   
+                    detectedTest = good.sum(axis=1)
+                    detected = np.sum(detectedTest>2)
                     
-                    return res 
+                    #for i,t0 in enumerate(np.random.uniform(0,self.surveyduration,nObj)): 
+                    #    duration =dt_pm[selection][i]
+                    #    slope = np.random.uniform(-3,3) 
+                    #    lc = self.lightCurve(t, t0, m0s[i],duration, slope) 
+                    #    good = m52snr(lc,dataSlice[self.m5Col][obs])> self.snr_lim 
+                    #    detectTest = dataSlice[self.m5Col][obs] - lc 
+                    #    if detectTest.max() > 0 and len(good)>2: 
+                    #         detected += 1 
+                     # Return the fraction of transients detected , 
+                    if float(nObj) == 0:
+                        A = np.inf 
+                    else: 
+                        A=float(nObj) 
+                        res = float(detected)/A            
+                        #print('detected fraction:{}'.format(res)) 
+                        return res
