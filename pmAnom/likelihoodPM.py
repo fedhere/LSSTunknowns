@@ -1,11 +1,4 @@
-{\rtf1\ansi\ansicpg1252\cocoartf2706
-\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
-{\colortbl;\red255\green255\blue255;}
-{\*\expandedcolortbl;;}
-\paperw11900\paperh16840\margl1440\margr1440\vieww29200\viewh15880\viewkind0
-\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
-
-\f0\fs24 \cf0 import numpy as np\
+import numpy as np\
 import pandas as pd\
 from scipy.stats import *\
 from astropy import units as u\
@@ -53,41 +46,30 @@ class LSPMmetric(BaseMetric):\
         np.seterr(over='ignore', invalid='ignore')\
         # typical velocity distribution from litterature (Binney et Tremain- Galactic Dynamics)\
 \
-    def position_selection(self, R, z):\
-        '''\
-        density profile in the Galaxy from Binney & Tremain, eq. 2.207a (bulge), 2.209(halo), 2.210 (disk)\
-        '''\
+    def position_selection(R, z):
         # costants\
-        ab = 1  # kpc\
-        ah = 1.9  # kpc\
-        alphab = 1.8\
-        alphah = 1.63\
-        betah = 2.17\
-        rb = 1.9  # Kpc, radius bulge\
-        qb = 0.6    #ratio of the axis of the bulge\
-        qh = 0.8    #ratio of the axis of the halo\
-        z0 = 0.3  # kpc\
-        z1 = 1  # kpc\
-        Rd = 3.2  # kpc, disk radius\
-        rho0b = 0.3 * 10 ** (-9)  # Mskpc^-3, normalization density of bulge\
-        rho0h = 0.27 * 10 ** (-9)  # Mskpc^-3, normalization density of halo\
-        sigma = 300 * 10 ** (-6)  # Mskpc^-2\
-        alpha1 = 0.5\
-        # parametes\
-        mb = np.sqrt(R ** 2 + z ** 2 / qb ** 2)\
-        mh = np.sqrt(R ** 2 + z ** 2 / qh ** 2)\
-        alpha0 = 1 - alpha1\
-\
-        rhoh = rho0h * (mh / ah) ** alphah * (1 + mh / ah) ** (alphah - betah)\
-        rhob = rho0b * (mb / ab) ** (-alphab) * np.exp(-mb / rb)\
-        rhod = sigma * np.exp(R / Rd) * (\
-        alpha0 / (2 * z0) * np.exp(-np.absolute(z) / z0) + alpha1 / (2 * z1) * np.exp(-np.absolute(z) / z1))\
-        p_prob = np.array([rhoh, rhob, rhod]) / np.nansum(np.array([rhoh, rhob, rhod]), axis=0)\
-        component = np.array(['H', 'B', 'D'])\
-\
-        idx = np.array(p_prob == np.nanmax(p_prob, axis=0))\
-        res = np.array([component[idx[:, i]][0] for i in range(np.shape(idx)[1])])\
-        return res\
+        Mb, Mdt, MdT, Mh = 606., 3690., 1700., 4615. # unit of 2.32*10**7 Msun
+        adt,adT,ah = 5.32, 2.,12. #kpc
+        bb,bdt, bdT = 0.39, 0.25,0.8 #kpc
+        f=0.12 # rho_Thick/rho_thin from Section 2.2 in Juric et al. (2008) 
+        C_rhod = bdT**2*MdT/4/np.pi
+        rhod = C_rhod*(R**2*adT+3*(z**2+bdT**2)**(1/2))*(adT+(z**2+bdT**2)**(1/2))**2/\
+        ((R**2+(adT+((z**2+bdT**2)**(1/2))**2)**(5/2))*(z**2+bdT**2)**(3/2))
+        rhodTOT = rhod*(f+1)
+
+        r = np.sqrt(R**2+z**2)
+        C_rhob = 3*bb**2*Mb/4/np.pi
+        rhob = C_rhob/ (r**2+bb**2)**(5/2)
+
+        C_rhoh = Mh/4/np.pi/ah/r**2
+        rhoh = C_rhoh*(r/ah)**(1.02)*((2.02+(r/ah)**(1.02))/(1+(r/ah)**(1.02))**2)
+        p_prob = np.array([rhoh, rhob, rhod]) / np.nansum(np.array([rhoh, rhob, rhod]), axis=0)
+        print(p_prob)
+        component = np.array(['H', 'B', 'D'])
+
+        idx = np.array(p_prob == np.nanmax(p_prob, axis=0))
+        res = np.array([component[idx[:, i]][0] for i in range(np.shape(idx)[1])])
+        return res
 \
     def DF(self, V_matrix, component, R, z):\
         '''retrive the probability distribution in the given region of the Galaxy. '''\
