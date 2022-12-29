@@ -2,6 +2,7 @@ import numpy as np\
 import pandas as pd\
 from scipy.stats import *\
 from astropy import units as u\
+import astropy.coordinates as coord
 from astropy.coordinates import SkyCoord\
 ### LSST dependencies\
 from lsst.sims.maf.metrics import BaseMetric\
@@ -117,8 +118,9 @@ class LSPMmetric(BaseMetric):
         return vT
     def coor_gal(self,Ra,Dec,d):
         c = SkyCoord(ra=Ra*u.degree, dec=Dec*u.degree, distance=d*u.pc)
-        z = c.cylindrical.z.value
-        R = c.cylindrical.rho.value
+        cc = c.transform_to(coord.Galactocentric)
+        z = cc.cylindrical.z.value
+        R = cc.cylindrical.rho.value
         return z,R
     def run(self, dataSlice, slicePoint=None):
         np.random.seed(2500)
