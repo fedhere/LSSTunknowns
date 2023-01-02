@@ -95,7 +95,7 @@ class LSPMmetric(BaseMetric):
             # parameters described Table 1 in Binney 2010
             k = 0.25
             q = 0.45
-            Rd = 3.2  # kpc
+            Rd = 3.2 *10**3 # pc
             sigmaz0 = 19  # km/s
             sigmar0 = 33.5  # km/s
             beta = 0.33
@@ -104,11 +104,11 @@ class LSPMmetric(BaseMetric):
             # parameters
             v = V_matrix[2, :]
             Jz = v ** 2 / 2 + v ** 2 / 2 * np.log(R[iD, np.newaxis] ** 2 + z[iD, np.newaxis] ** 2 / 0.8 ** 2)
-            Ar = k * Jz / np.exp(2 * q * (120 - R[iD, np.newaxis]) / Rd) / sigmar0
-            Az = k * Jz / np.exp(2 * q * (120 - R[iD, np.newaxis]) / Rd) / sigmaz0
+            Ar = k * Jz / np.exp(2 * q * (120*10**3 - R[iD, np.newaxis]) / Rd) / sigmar0
+            Az = k * Jz / np.exp(2 * q * (120*10**3 - R[iD, np.newaxis]) / Rd) / sigmaz0
             P[iD, :] = v ** 2 / Jz * sigma * (1 + np.tanh(R[iD, np.newaxis] * v / L0)) * np.exp(
-                -k * Jz / (sigmar0 * np.exp(2 * q * (120 - R[iD, np.newaxis]) / Rd)) ** 2) / (
-                       np.pi * k * sigmar0 * np.exp(2 * q * (120 - R[iD, np.newaxis]) / Rd))        #probability velocity distribution function from Binney 2010
+                -k * Jz / (sigmar0 * np.exp(2 * q * (120 *10**3- R[iD, np.newaxis]) / Rd)) ** 2) / (
+                       np.pi * k * sigmar0 * np.exp(2 * q * (120*10**3 - R[iD, np.newaxis]) / Rd))        #probability velocity distribution function from Binney 2010
         return P
     def V_conversion(self,V_GC, ra,dec):
         U,V,W = V_GC
