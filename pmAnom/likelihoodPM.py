@@ -9,8 +9,18 @@ from lsst.sims.maf.metrics import BaseMetric\
 from lsst.sims.maf.utils.mafUtils import radec2pix\
 from lsst.sims.maf.utils import m52snr, astrom_precision, sigma_slope\
 from opsimUtils import *\
-\
-\
+
+__all__ = [
+    "generate_pm_slicer",
+    "LSPMmetric",
+    "microlensing_amplification",
+    "microlensing_amplification_fsfb",
+    "info_peak_before_t0",
+    "fisher_matrix",
+    "coefficients_pspl",
+    "coefficients_fsfb",
+]
+
 class LSPMmetric(BaseMetric):
     def __init__(self, metricName='LSPMmetric', f='g', surveyduration=10, snr_lim=5., sigma_threshold=1,
                  m5Col='fiveSigmaDepth', prob_type='uniform', U=np.arange(-100, 100, 25), V=np.arange(-100, 100, 25),
@@ -47,7 +57,7 @@ class LSPMmetric(BaseMetric):
         np.seterr(over='ignore', invalid='ignore')
         # typical velocity distribution from litterature (Binney et Tremain- Galactic Dynamics)
 
-    def position_selection(R, z):
+    def position_selection(self,R, z):
         # costants\
         Mb, Mdt, MdT, Mh = 606., 3690., 1700., 4615. # unit of 2.32*10**7 Msun
         adt,adT,ah = 5.32, 2.,12. #kpc
@@ -65,7 +75,6 @@ class LSPMmetric(BaseMetric):
         C_rhoh = Mh/4/np.pi/ah/r**2
         rhoh = C_rhoh*(r/ah)**(1.02)*((2.02+(r/ah)**(1.02))/(1+(r/ah)**(1.02))**2)
         p_prob = np.array([rhoh, rhob, rhod]) / np.nansum(np.array([rhoh, rhob, rhod]), axis=0)
-        print(p_prob)
         component = np.array(['H', 'B', 'D'])
 
         idx = np.array(p_prob == np.nanmax(p_prob, axis=0))
@@ -74,15 +83,15 @@ class LSPMmetric(BaseMetric):
 
     def DF(self, V_matrix, component, R, z):
         '''retrive the probability distribution in the given region of the Galaxy. '''
-        P = np.empty(shape=(np.size(component), np.size(V_matrix[0, :])))
+        P = np.empty(shape=(np.size(component), np.shape(V_matrix)[1]))
         # Halo
         iH = np.where(component == 'H')
         if np.size(iH) > 0:
             v = np.sqrt(V_matrix[0, :] ** 2 + V_matrix[1, :] ** 2 + V_matrix[2, :] ** 2)
             vesc = 575  # km/s, escape velocity
-            vsun = 187.5  # km/s, velocity of the Sun
+            vsun = 220  # km/s, velocity of the Sun
             N = 1.003   # normalization constant
-            P[iH, :] = 4 * N / vsun / np.sqrt(np.pi) * (v / vesc) ** 2 * np.exp(-v ** 2 / vsun)  #probability velocity distribution function from Baushev et al 2012
+            P[iH, :] = 4 * N / vsun / np.sqrt(np.pi) * (v / vsun) ** 2 * np.exp(-v ** 2 / vsun)  #probability velocity distribution function from Baushev et al 2012
         # Bulge
         iB = np.where(component == 'B')
         if np.size(iB) > 0:
@@ -104,16 +113,16 @@ class LSPMmetric(BaseMetric):
             # parameters
             v = V_matrix[2, :]
             Jz = v ** 2 / 2 + v ** 2 / 2 * np.log(R[iD, np.newaxis] ** 2 + z[iD, np.newaxis] ** 2 / 0.8 ** 2)
-            Ar = k * Jz / np.exp(2 * q * (120*10**3 - R[iD, np.newaxis]) / Rd) / sigmar0
-            Az = k * Jz / np.exp(2 * q * (120*10**3 - R[iD, np.newaxis]) / Rd) / sigmaz0
+            Ar = k * Jz / np.exp(2 * q * (120*10**3  - R[iD, np.newaxis]) / Rd) / sigmar0
+            Az = k * Jz / np.exp(2 * q * (120*10**3  - R[iD, np.newaxis]) / Rd) / sigmaz0
             P[iD, :] = v ** 2 / Jz * sigma * (1 + np.tanh(R[iD, np.newaxis] * v / L0)) * np.exp(
-                -k * Jz / (sigmar0 * np.exp(2 * q * (120 *10**3- R[iD, np.newaxis]) / Rd)) ** 2) / (
-                       np.pi * k * sigmar0 * np.exp(2 * q * (120*10**3 - R[iD, np.newaxis]) / Rd))        #probability velocity distribution function from Binney 2010
+                -k * Jz / (sigmar0 * np.exp(2 * q * (120*10**3  - R[iD, np.newaxis]) / Rd)) ** 2) / (
+                       np.pi * k * sigmaz0 * np.exp(2 * q * (120*10**3  - R[iD, np.newaxis]) / Rd))        #probability velocity distribution function from Binney 2010
         return P
-    def V_conversion(self,V_GC, ra,dec):
+    def V_conversion(self,V_GC, ra,dec): #https://www.astro.utu.fi/~cflynn/galdyn/lecture7.html
         U,V,W = V_GC
         vl = (U*np.sin(ra)-V*np.cos(ra))/(2*np.sin(ra))
-        vb = ((1-2np.cos(dec))/np.cos(dec))*(np.tan(dec)*np.sqrt(U**2+V**2+vl**2-2*vl*(U*np.sin(ra)-V*np.cos(ra)))-W)
+        vb = ((1-2*np.cos(dec))/np.cos(dec))*(np.tan(dec)*np.sqrt(U**2+V**2+vl**2-2*vl*(U*np.sin(ra)-V*np.cos(ra)))-W)
         vT = np.sqrt(vl**2+vb**2)
         return vT
     def coor_gal(self,Ra,Dec,d):
@@ -121,7 +130,7 @@ class LSPMmetric(BaseMetric):
         cc = c.transform_to(coord.Galactocentric)
         z = cc.cylindrical.z.value
         R = cc.cylindrical.rho.value
-        return z,R
+        return (z,R)
     def run(self, dataSlice, slicePoint=None):
         np.random.seed(2500)
         ''' simulation of the measured proper motion '''
@@ -140,23 +149,23 @@ class LSPMmetric(BaseMetric):
         Pv = self.DF(V_galactic, gal_com, R, z)             #estimate the velocity distibution function for each star -- because we do not know a-priori the position of the stars we estimate DF for all the positions--
         marg_P = np.nanmean(Pv / np.nansum(Pv, axis=0), axis=0)  #marginalize the probability function for each star over the positions
         marg_P /= np.nansum(marg_P) #normalize the marginalized distribution
-        vel_idx = np.random.choice(np.arange(0, len(V_galactic[0, :]), 1)[np.isfinite(marg_P)],
+        vel_idx = np.random.choice(np.arange(0, np.shape(V_galactic)[1], 1)[np.isfinite(marg_P)],
                                    p=marg_P[np.isfinite(marg_P)], size=3)  #random selection of the velocity for each star following the velocity distribution function
-        vT_unusual = self.V_conversion(V_galactic[:, vel_idx],fieldRA, fieldDec)      #selection of the trasversal component
+        vT = self.V_conversion(V_galactic[:,vel_idx],fieldRA, fieldDec)      #selection of the trasversal component
 
         #selection of the transversal component for the proper motion of the stars from the unusual population
         if self.prob_type == 'uniform':
             p_vel_unusual = uniform(-100, 100)
             v_unusual = p_vel_unusual.rvs(size=(3, np.size(d)))
-            vT = self.V_conversion(v_unusual,fieldRA, fieldDec) 
+            vT_unusual= self.V_conversion(v_unusual,fieldRA, fieldDec) 
         else:
             p_vel_un = pd.read_csv(self.prob_type)
             vel_idx = np.random.choice(p_vel_un['vel'], p=p_vel_un['fraction'] / np.sum(p_vel_un['fraction']), size=3)
             vT_unusual = self.V_conversion(V_galactic[:, vel_idx],fieldRA, fieldDec) 
 
         direction = np.random.choice((-1, 1))  #select the direction of the proper motion
-        mu = direction * vT / 4.75 / d          #estimate the proper motion of the usual population
-        mu_unusual = direction * vT_unusual / 4.75 / d  #estimate the proper motion of the unusual population
+        mu = direction * vT[0] / 4.75 / d          #estimate the proper motion of the usual population
+        mu_unusual = direction * vT_unusual[0] / 4.75 / d  #estimate the proper motion of the unusual population
         snr = m52snr(M[:, np.newaxis], dataSlice[self.m5Col][obs])  # select objects above the limit magnitude threshold whatever the magnitude of the star is
         row, col = np.where(snr > self.snr_lim) #select the snr above the threshold
         precis = astrom_precision(dataSlice[self.seeingCol][obs], snr[row, :])  #estimate the uncertainties on the position
@@ -172,7 +181,7 @@ class LSPMmetric(BaseMetric):
             selection_unusual = np.where((dt_pm_unusual > min(DeltaTs)) & (dt_pm_unusual < max(DeltaTs)) & (mu_unusual[np.unique(row)] > sigmapm)) 
            #select measurable proper motions
 
-            if (np.size(selection_usual)+np.size(selection_unusual) > 5000):
+            if (np.size(selection_usual)+np.size(selection_unusual) > 500):
                 pa = np.random.uniform(0, 2 * np.pi, len(mu_unusual[selection_usual])) #select the poition on the inclination with respect the line of sight
                 pa_unusual = np.random.uniform(0, 2 * np.pi, len(mu_unusual[selection_unusual]))
                 pm_alpha, pm_delta = mu[selection_usual] * np.sin(pa), mu[selection_usual] * np.cos(pa) #estimate the components of the proper motion for the usual population
@@ -196,9 +205,65 @@ class LSPMmetric(BaseMetric):
                     return dic
                 else:
                     return res
+                    print(res)
             else:
                 res=0
                 return res
         else:
                 res=0
                 return res
+            
+            
+def generate_pm_slicer(
+    n_events=10000,
+    seed=42,
+    nside=128,
+    filtername="g",
+):
+    """
+    Generate a UserPointSlicer with a population of proper motion. To be used with
+    LS,TPM,CI metrics
+    Parameters
+    ----------
+    n_events : int (10000)
+        Number of star locations to generate
+    seed : float (42)
+        Random number seed
+    nside : int (128)
+        HEALpix nside, used to pick which stellar density map to load (TRImap folder has map only for nside=64,128)
+    filtername : str ('r')
+        The filter to use for the stellar density map
+    """
+    np.random.seed(seed)
+    sim = pd.read_csv('hyperstar_uniform.csv', usecols=['MAG', 'MODE', 'd', 'PM', 'PM_out'])
+    map_dir = os.path.join(get_data_dir(), "maps", "TriMaps")
+    data = np.load(
+        os.path.join(map_dir, "TRIstarDensity_%s_nside_%i.npz" % (filtername, nside))
+    )
+    star_density = data["starDensity"].copy()
+    # magnitude bins
+    bins = data["bins"].copy()
+    data.close()
+
+    star_mag = sim['MAG']
+    bin_indx = np.where(bins[1:] >= star_mag[:,np.newaxis])[0].min()
+    density_used = star_density[:, bin_indx].ravel()
+    order = np.argsort(density_used)
+    # I think the model might have a few outliers at the extreme, let's truncate it a bit
+    density_used[order[-10:]] = density_used[order[-11]]
+
+    # now, let's draw N from that distribution squared
+    dist = density_used[order] ** 2
+    cumm_dist = np.cumsum(dist)
+    cumm_dist = cumm_dist / np.max(cumm_dist)
+    uniform_draw = np.random.uniform(size=nevents)
+    indexes = np.floor(np.interp(uniform_draw, cumm_dist, np.arange(cumm_dist.size)))
+    hp_ids = order[indexes.astype(int)]
+    gal_l, gal_b = hpid2RaDec(nside, hp_ids, nest=True)
+    ra, dec = equatorialFromGalactic(gal_l, gal_b)
+
+    # Set up the slicer to evaluate the catalog we just made
+    slicer = slicers.UserPointsSlicer(ra, dec, lat_lon_deg=True, badval=0)
+    # Add any additional information about each object to the slicer
+
+    return slicer            
