@@ -5,9 +5,15 @@ from astropy import units as u\
 import astropy.coordinates as coord
 from astropy.coordinates import SkyCoord\
 ### LSST dependencies\
-from lsst.sims.maf.metrics import BaseMetric\
-from lsst.sims.maf.utils.mafUtils import radec2pix\
-from lsst.sims.maf.utils import m52snr, astrom_precision, sigma_slope\
+import rubin_sim.maf.db as db
+from rubin_sim.maf.metrics import BaseMetric
+import rubin_sim.maf.metrics as metrics
+import rubin_sim.maf.slicers as slicers
+from rubin_sim.maf.utils.mafUtils import radec2pix
+from rubin_sim.maf.utils import m52snr, astrom_precision, sigma_slope
+from rubin_sim.utils import hpid2RaDec, equatorialFromGalactic
+import rubin_sim.maf.slicers as slicers
+from rubin_sim.data import get_data_dir
 from opsimUtils import *\
 
 __all__ = [
