@@ -157,8 +157,7 @@ class LSPMmetric(BaseMetric):
         marg_P /= np.nansum(marg_P) #normalize the marginalized distribution
         vel_idx = np.random.choice(np.arange(0, np.shape(V_galactic)[1], 1)[np.isfinite(marg_P)],
                                    p=marg_P[np.isfinite(marg_P)], size=3)  #random selection of the velocity for each star following the velocity distribution function
-        vT = self.V_conversion(V_galactic[:,vel_idx],fieldRA, fieldDec)      #selection of the trasversal component
-
+        vT = self.V_conversion(np.array([V_galactic[i,vel_idx[i]] for i in range(np.shape(V_galactic)[0])]) ,fieldRA, fieldDec)      #selection of the trasversal component
         #selection of the transversal component for the proper motion of the stars from the unusual population
         if self.prob_type == 'uniform':
             p_vel_unusual = uniform(-100, 100)
@@ -167,11 +166,12 @@ class LSPMmetric(BaseMetric):
         else:
             p_vel_un = pd.read_csv(self.prob_type)
             vel_idx = np.random.choice(p_vel_un['vel'], p=p_vel_un['fraction'] / np.sum(p_vel_un['fraction']), size=3)
-            vT_unusual = self.V_conversion(V_galactic[:, vel_idx],fieldRA, fieldDec) 
-
+            vT_unusual = self.V_conversion(np.array([V_galactic[i,vel_idx[i]] for i in range(np.shape(V_galactic)[0])]),
+                                           fieldRA, fieldDec) 
+            
         direction = np.random.choice((-1, 1))  #select the direction of the proper motion
-        mu = direction * vT[0] / 4.75 / d          #estimate the proper motion of the usual population
-        mu_unusual = direction * vT_unusual[0] / 4.75 / d  #estimate the proper motion of the unusual population
+        mu = direction * vT / 4.75 / d  *1e3        #estimate the proper motion of the usual population
+        mu_unusual = direction * vT_unusual / 4.75 / d  *1e3 #estimate the proper motion of the unusual population
         snr = m52snr(M[:, np.newaxis], dataSlice[self.m5Col][obs])  # select objects above the limit magnitude threshold whatever the magnitude of the star is
         row, col = np.where(snr > self.snr_lim) #select the snr above the threshold
         precis = astrom_precision(dataSlice[self.seeingCol][obs], snr[row, :])  #estimate the uncertainties on the position
@@ -181,13 +181,13 @@ class LSPMmetric(BaseMetric):
             dt = np.array(list(combinations(Times, 2)))
             DeltaTs = np.absolute(np.subtract(dt[:, 0], dt[:, 1])) #estimate all the possible time gaps given the dates of the observations
             DeltaTs = np.unique(DeltaTs)
-            dt_pm = 0.05 * np.amin(dataSlice[self.seeingCol][obs]) / mu[np.unique(row)] # time gap of the motion given the proper motion
-            dt_pm_unusual = 0.05 * np.amin(dataSlice[self.seeingCol][obs]) / mu_unusual[np.unique(row)]
-            selection_usual = np.where((dt_pm > min(DeltaTs)) & (dt_pm < max(DeltaTs)) & (mu[np.unique(row)] > sigmapm)) #select measurable proper motions
-            selection_unusual = np.where((dt_pm_unusual > min(DeltaTs)) & (dt_pm_unusual < max(DeltaTs)) & (mu_unusual[np.unique(row)] > sigmapm)) 
+            dt_pm = 0.05 * np.amin(dataSlice[self.seeingCol][obs]) / np.absolute(mu[np.unique(row)]) # time gap of the motion given the proper motion
+            dt_pm_unusual = 0.05 * np.amin(dataSlice[self.seeingCol][obs]) / np.absolute(mu_unusual[np.unique(row)])
+            selection_usual = np.where((dt_pm > min(DeltaTs)) & (dt_pm < max(DeltaTs)) & (np.absolute(mu_unusual[np.unique(row)]) > sigmapm)) #select measurable proper motions
+            selection_unusual = np.where((dt_pm_unusual > min(DeltaTs)) & (dt_pm_unusual < max(DeltaTs)) & (np.absolute(mu_unusual[np.unique(row)]) > sigmapm)) 
            #select measurable proper motions
 
-            if (np.size(selection_usual)+np.size(selection_unusual) > 500):
+            if (np.size(selection_usual)+np.size(selection_unusual) > 0):
                 pa = np.random.uniform(0, 2 * np.pi, len(mu_unusual[selection_usual])) #select the poition on the inclination with respect the line of sight
                 pa_unusual = np.random.uniform(0, 2 * np.pi, len(mu_unusual[selection_unusual]))
                 pm_alpha, pm_delta = mu[selection_usual] * np.sin(pa), mu[selection_usual] * np.cos(pa) #estimate the components of the proper motion for the usual population
@@ -211,12 +211,12 @@ class LSPMmetric(BaseMetric):
                     return dic
                 else:
                     return res
-                    print(res)
+                   
             else:
-                res=0
+                res=0                
                 return res
         else:
-                res=0
+                res=0           
                 return res
             
             
