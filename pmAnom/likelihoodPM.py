@@ -125,12 +125,15 @@ class LSPMmetric(BaseMetric):
                 -k * Jz / (sigmar0 * np.exp(2 * q * (120*10**3  - R[iD, np.newaxis]) / Rd)) ** 2) / (
                        np.pi * k * sigmaz0 * np.exp(2 * q * (120*10**3  - R[iD, np.newaxis]) / Rd))        #probability velocity distribution function from Binney 2010
         return P
-    def V_conversion(self,V_GC, ra,dec): #https://www.astro.utu.fi/~cflynn/galdyn/lecture7.html
+    def V_conversion(self,V_GC, ra,dec,d): #https://www.astro.utu.fi/~cflynn/galdyn/lecture7.html
+        c = SkyCoord(ra=ra*u.degree, dec=dec*u.degree, distance=d*u.kpc)
+        cc = c.transform_to(coord.Galactocentric)
         U,V,W = V_GC
-        vl = (U*np.sin(ra)-V*np.cos(ra))/(2*np.sin(ra))
-        vb = ((1-2*np.cos(dec))/np.cos(dec))*(np.tan(dec)*np.sqrt(U**2+V**2+vl**2-2*vl*(U*np.sin(ra)-V*np.cos(ra)))-W)
-        vT = np.sqrt(vl**2+vb**2)
-        return vT
+        gc = Galactic(u=cc.cartesian.x*u.pc, v=cc.cartesian.y*u.pc, w=cc.cartesian.z*u.pc, 
+                      U=U*u.km/u.s, V=V*u.km/u.s, W=W*u.km/u.s,representation_type=CartesianRepresentation, 
+                      differential_type=CartesianDifferential)  
+        pm  = gc.transform_to(coord.ICRS)
+        return (pm.pm_ra_cosdec.value, pm.pm_dec.value)
     def coor_gal(self,Ra,Dec,d):
         c = SkyCoord(ra=Ra*u.degree, dec=Dec*u.degree, distance=d*u.pc)
         cc = c.transform_to(coord.Galactocentric)
@@ -157,21 +160,23 @@ class LSPMmetric(BaseMetric):
         marg_P /= np.nansum(marg_P) #normalize the marginalized distribution
         vel_idx = np.random.choice(np.arange(0, np.shape(V_galactic)[1], 1)[np.isfinite(marg_P)],
                                    p=marg_P[np.isfinite(marg_P)], size=3)  #random selection of the velocity for each star following the velocity distribution function
-        vT = self.V_conversion(np.array([V_galactic[i,vel_idx[i]] for i in range(np.shape(V_galactic)[0])]) ,fieldRA, fieldDec)      #selection of the trasversal component
+        mu_ra, mu_dec = self.V_conversion(np.array([V_galactic[i,vel_idx[i]] for i in range(np.shape(V_galactic)[0])]) ,fieldRA, fieldDec)      #selection of the trasversal component
+        mu = np.sqrt(mu_ra**2+mu_dec**2)
         #selection of the transversal component for the proper motion of the stars from the unusual population
         if self.prob_type == 'uniform':
             p_vel_unusual = uniform(-100, 100)
             v_unusual = p_vel_unusual.rvs(size=(3, np.size(d)))
-            vT_unusual= self.V_conversion(v_unusual,fieldRA, fieldDec) 
+            mu_ra_un, mu_dec_un= self.V_conversion(v_unusual,fieldRA, fieldDec) 
+            mu_un = np.sqrt(mu_ra_un**2+ mu_dec_un**2)
         else:
             p_vel_un = pd.read_csv(self.prob_type)
             vel_idx = np.random.choice(p_vel_un['vel'], p=p_vel_un['fraction'] / np.sum(p_vel_un['fraction']), size=3)
-            vT_unusual = self.V_conversion(np.array([V_galactic[i,vel_idx[i]] for i in range(np.shape(V_galactic)[0])]),
+            mu_unusual = self.V_conversion(np.array([V_galactic[i,vel_idx[i]] for i in range(np.shape(V_galactic)[0])]),
                                            fieldRA, fieldDec) 
             
-        direction = np.random.choice((-1, 1))  #select the direction of the proper motion
-        mu = direction * vT / 4.75 / d  *1e3        #estimate the proper motion of the usual population
-        mu_unusual = direction * vT_unusual / 4.75 / d  *1e3 #estimate the proper motion of the unusual population
+        #direction = np.random.choice((-1, 1))  #select the direction of the proper motion
+        #mu = direction * vT / 4.75 / d  *1e3        #estimate the proper motion of the usual population
+        #mu_unusual = direction * vT_unusual / 4.75 / d  *1e3 #estimate the proper motion of the unusual population
         snr = m52snr(M[:, np.newaxis], dataSlice[self.m5Col][obs])  # select objects above the limit magnitude threshold whatever the magnitude of the star is
         row, col = np.where(snr > self.snr_lim) #select the snr above the threshold
         precis = astrom_precision(dataSlice[self.seeingCol][obs], snr[row, :])  #estimate the uncertainties on the position
@@ -187,13 +192,15 @@ class LSPMmetric(BaseMetric):
             selection_unusual = np.where((dt_pm_unusual > min(DeltaTs)) & (dt_pm_unusual < max(DeltaTs)) & (np.absolute(mu_unusual[np.unique(row)]) > sigmapm)) 
            #select measurable proper motions
 
-            if (np.size(selection_usual)+np.size(selection_unusual) > 0):
-                pa = np.random.uniform(0, 2 * np.pi, len(mu_unusual[selection_usual])) #select the poition on the inclination with respect the line of sight
-                pa_unusual = np.random.uniform(0, 2 * np.pi, len(mu_unusual[selection_unusual]))
-                pm_alpha, pm_delta = mu[selection_usual] * np.sin(pa), mu[selection_usual] * np.cos(pa) #estimate the components of the proper motion for the usual population
-                pm_un_alpha, pm_un_delta = mu_unusual[selection_unusual] * np.sin(pa_unusual), mu_unusual[selection_unusual] * np.cos(pa_unusual)   #estimate the components of the proper motion for the unusual population
-                mu = mu[selection_usual] * 1e3
-                mu_unusual = mu_unusual[selection_unusual] * 1e3
+            if (np.size(selection_usual)>0) and (np.size(selection_unusual) > 0):
+                #pa = np.random.uniform(0, 2 * np.pi, len(mu_unusual[selection_usual])) #select the poition on the inclination with respect the line of sight
+                #pa_unusual = np.random.uniform(0, 2 * np.pi, len(mu_unusual[selection_unusual]))
+                #pm_alpha, pm_delta = mu[selection_usual] * np.sin(pa), mu[selection_usual] * np.cos(pa) #estimate the components of the proper motion for the usual population
+                #pm_un_alpha, pm_un_delta = mu_unusual[selection_unusual] * np.sin(pa_unusual), mu_unusual[selection_unusual] * np.cos(pa_unusual)   #estimate the components of the proper motion for the unusual population
+                pm_alpha, pm_delta = mu_ra[selection_unusual], mu_dec[selection_unusual]
+                pm_un_alpha, pm_un_delta = mu_ra_un[selection_unusual], mu_dec_un[selection_unusual]
+                mu = mu[selection_usual]
+                mu_unusual = mu_unusual[selection_unusual]
                 variance_k = np.array([np.std(mu[np.where(gal_com[selection_usual] == p)]) for p in ['H', 'D', 'B']])
                 variance_mu = np.std(mu)
                 sigmaL = np.sqrt(
@@ -211,12 +218,17 @@ class LSPMmetric(BaseMetric):
                     return dic
                 else:
                     return res
-                   
+                    #print('the selection worked')
+                    #print('res={}'.format(res))
             else:
-                res=0                
+                res=0
+                #print('the selection did not work')
+                #print('res={}'.format(res))
                 return res
         else:
-                res=0           
+                res=0
+                #print('not enough visits')
+                #print('res={}'.format(res))
                 return res
             
             
