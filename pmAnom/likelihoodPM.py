@@ -160,19 +160,20 @@ class LSPMmetric(BaseMetric):
         marg_P /= np.nansum(marg_P) #normalize the marginalized distribution
         vel_idx = np.random.choice(np.arange(0, np.shape(V_galactic)[1], 1)[np.isfinite(marg_P)],
                                    p=marg_P[np.isfinite(marg_P)], size=3)  #random selection of the velocity for each star following the velocity distribution function
-        mu_ra, mu_dec = self.V_conversion(np.array([V_galactic[i,vel_idx[i]] for i in range(np.shape(V_galactic)[0])]) ,fieldRA, fieldDec)      #selection of the trasversal component
+        mu_ra, mu_dec = self.V_conversion(np.array([V_galactic[i,vel_idx[i]] for i in range(np.shape(V_galactic)[0])]) ,np.mean(dataSlice['fieldRA']),np.mean(dataSlice['fieldDec']),d)      #selection of the trasversal component
         mu = np.sqrt(mu_ra**2+mu_dec**2)
         #selection of the transversal component for the proper motion of the stars from the unusual population
         if self.prob_type == 'uniform':
             p_vel_unusual = uniform(-100, 100)
             v_unusual = p_vel_unusual.rvs(size=(3, np.size(d)))
-            mu_ra_un, mu_dec_un= self.V_conversion(v_unusual,fieldRA, fieldDec) 
+            mu_ra_un, mu_dec_un= self.V_conversion(v_unusual,np.mean(dataSlice['fieldRA']),np.mean(dataSlice['fieldDec']),d) 
             mu_un = np.sqrt(mu_ra_un**2+ mu_dec_un**2)
         else:
             p_vel_un = pd.read_csv(self.prob_type)
             vel_idx = np.random.choice(p_vel_un['vel'], p=p_vel_un['fraction'] / np.sum(p_vel_un['fraction']), size=3)
-            mu_unusual = self.V_conversion(np.array([V_galactic[i,vel_idx[i]] for i in range(np.shape(V_galactic)[0])]),
-                                           fieldRA, fieldDec) 
+            mu_ra_un, mu_dec_un = self.V_conversion(np.array([V_galactic[i,vel_idx[i]] for i in range(np.shape(V_galactic)[0])]),
+                                           np.mean(dataSlice['fieldRA']),np.mean(dataSlice['fieldDec']),d) 
+            mu_un = np.sqrt(mu_ra_un**2+ mu_dec_un**2)
             
         #direction = np.random.choice((-1, 1))  #select the direction of the proper motion
         #mu = direction * vT / 4.75 / d  *1e3        #estimate the proper motion of the usual population
