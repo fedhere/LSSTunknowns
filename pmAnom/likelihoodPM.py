@@ -3,7 +3,9 @@ import pandas as pd\
 from scipy.stats import *\
 from astropy import units as u\
 import astropy.coordinates as coord
-from astropy.coordinates import SkyCoord\
+from astropy.coordinates import SkyCoord
+from astropy.coordinates import (CartesianRepresentation,
+                                 CartesianDifferential, Galactic)
 ### LSST dependencies\
 import rubin_sim.maf.db as db
 from rubin_sim.maf.metrics import BaseMetric
@@ -126,10 +128,10 @@ class LSPMmetric(BaseMetric):
                        np.pi * k * sigmaz0 * np.exp(2 * q * (120*10**3  - R[iD, np.newaxis]) / Rd))        #probability velocity distribution function from Binney 2010
         return P
     def V_conversion(self,V_GC, ra,dec,d): #https://www.astro.utu.fi/~cflynn/galdyn/lecture7.html
-        c = SkyCoord(ra=ra*u.degree, dec=dec*u.degree, distance=d*u.kpc)
+        c = SkyCoord(ra=ra*u.degree, dec=dec*u.degree, distance=d*u.pc)
         cc = c.transform_to(coord.Galactocentric)
         U,V,W = V_GC
-        gc = Galactic(u=cc.cartesian.x*u.pc, v=cc.cartesian.y*u.pc, w=cc.cartesian.z*u.pc, 
+        gc = Galactic(u=cc.cartesian.x, v=cc.cartesian.y, w=cc.cartesian.z, 
                       U=U*u.km/u.s, V=V*u.km/u.s, W=W*u.km/u.s,representation_type=CartesianRepresentation, 
                       differential_type=CartesianDifferential)  
         pm  = gc.transform_to(coord.ICRS)
@@ -160,20 +162,22 @@ class LSPMmetric(BaseMetric):
         marg_P /= np.nansum(marg_P) #normalize the marginalized distribution
         vel_idx = np.random.choice(np.arange(0, np.shape(V_galactic)[1], 1)[np.isfinite(marg_P)],
                                    p=marg_P[np.isfinite(marg_P)], size=3)  #random selection of the velocity for each star following the velocity distribution function
-        mu_ra, mu_dec = self.V_conversion(np.array([V_galactic[i,vel_idx[i]] for i in range(np.shape(V_galactic)[0])]) ,np.mean(dataSlice['fieldRA']),np.mean(dataSlice['fieldDec']),d)      #selection of the trasversal component
+        mu_components = np.array([self.V_conversion(np.array([V_galactic[i,vel_idx[i]] for i in range(np.shape(V_galactic)[0])]) ,np.mean(dataSlice['fieldRA']),np.mean(dataSlice['fieldDec']),dd)for dd in d])    #selection of the trasversal component
+        mu_ra, mu_dec = mu_components[:,0],mu_components[:,1]
         mu = np.sqrt(mu_ra**2+mu_dec**2)
         #selection of the transversal component for the proper motion of the stars from the unusual population
         if self.prob_type == 'uniform':
             p_vel_unusual = uniform(-100, 100)
             v_unusual = p_vel_unusual.rvs(size=(3, np.size(d)))
             mu_ra_un, mu_dec_un= self.V_conversion(v_unusual,np.mean(dataSlice['fieldRA']),np.mean(dataSlice['fieldDec']),d) 
-            mu_un = np.sqrt(mu_ra_un**2+ mu_dec_un**2)
+            mu_unusual = np.sqrt(mu_ra_un**2+ mu_dec_un**2)
         else:
             p_vel_un = pd.read_csv(self.prob_type)
             vel_idx = np.random.choice(p_vel_un['vel'], p=p_vel_un['fraction'] / np.sum(p_vel_un['fraction']), size=3)
-            mu_ra_un, mu_dec_un = self.V_conversion(np.array([V_galactic[i,vel_idx[i]] for i in range(np.shape(V_galactic)[0])]),
-                                           np.mean(dataSlice['fieldRA']),np.mean(dataSlice['fieldDec']),d) 
-            mu_un = np.sqrt(mu_ra_un**2+ mu_dec_un**2)
+            mu_un_components = np.array([self.V_conversion(np.array([V_galactic[i,vel_idx[i]] for i in range(np.shape(V_galactic)[0])]),
+                                           np.mean(dataSlice['fieldRA']),np.mean(dataSlice['fieldDec']),dd) for dd in d] )
+            mu_ra_un, mu_dec_un = mu_un_components[:,0], mu_un_components[:,1]
+            mu_unusual = np.sqrt(mu_ra_un**2+ mu_dec_un**2) 
             
         #direction = np.random.choice((-1, 1))  #select the direction of the proper motion
         #mu = direction * vT / 4.75 / d  *1e3        #estimate the proper motion of the usual population
