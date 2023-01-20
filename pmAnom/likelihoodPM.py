@@ -66,13 +66,13 @@ class LSPMmetric(BaseMetric):
         # typical velocity distribution from litterature (Binney et Tremain- Galactic Dynamics)
 
     def position_selection(self,R, z):
-        # costants\
-        Mb, Mdt, MdT, Mh = 606., 3690., 1700., 4615. # unit of 2.32*10**7 Msun
-        adt,adT,ah = 5.32, 2.,12. #kpc
+        #from https://www.aanda.org/articles/aa/full_html/2017/02/aa27346-15/aa27346-15.html
+        Mb, Mdt, MdT, Mh = 606., 3690., 1700., 4615. # unit of *2.32*10**7 Msun
+        adt,adT,ah = 5.32, 2.6,12. #kpc
         bb,bdt, bdT = 0.39, 0.25,0.8 #kpc
         f=0.12 # rho_Thick/rho_thin from Section 2.2 in Juric et al. (2008) 
         C_rhod = bdT**2*MdT/4/np.pi
-        rhod = C_rhod*(R**2*adT+3*(z**2+bdT**2)**(1/2))*(adT+(z**2+bdT**2)**(1/2))**2/\
+        rhod = C_rhod*(R**2*adT+(adT+3*(z**2+bdT**2)**(1/2))*(adT+(z**2+bdT**2)**(1/2))**2)/\
         ((R**2+(adT+((z**2+bdT**2)**(1/2))**2)**(5/2))*(z**2+bdT**2)**(3/2))
         rhodTOT = rhod*(f+1)
 
@@ -82,7 +82,8 @@ class LSPMmetric(BaseMetric):
 
         C_rhoh = Mh/4/np.pi/ah/r**2
         rhoh = C_rhoh*(r/ah)**(1.02)*((2.02+(r/ah)**(1.02))/(1+(r/ah)**(1.02))**2)
-        p_prob = np.array([rhoh, rhob, rhod]) / np.nansum(np.array([rhoh, rhob, rhod]), axis=0)
+        p_prob = np.array([rhoh, rhob, rhod]) / np.nansum(np.array([rhoh, rhob, rhodTOT]), axis=0)
+        print(p_prob)
         component = np.array(['H', 'B', 'D'])
 
         idx = np.array(p_prob == np.nanmax(p_prob, axis=0))
