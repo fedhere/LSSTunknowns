@@ -67,29 +67,37 @@ class LSPMmetric(BaseMetric):
 
     def position_selection(self,R, z):
         #from https://www.aanda.org/articles/aa/full_html/2017/02/aa27346-15/aa27346-15.html
-        Mb, Mdt, MdT, Mh = 606., 3690., 1700., 4615. # unit of *2.32*10**7 Msun
-        adt,adT,ah = 5.32, 2.6,12. #kpc
-        bb,bdt, bdT = 0.39, 0.25,0.8 #kpc
-        f=0.12 # rho_Thick/rho_thin from Section 2.2 in Juric et al. (2008) 
-        C_rhod = bdT**2*MdT/4/np.pi
-        rhod = C_rhod*(R**2*adT+(adT+3*(z**2+bdT**2)**(1/2))*(adT+(z**2+bdT**2)**(1/2))**2)/\
-        ((R**2+(adT+((z**2+bdT**2)**(1/2))**2)**(5/2))*(z**2+bdT**2)**(3/2))
-        rhodTOT = rhod*(f+1)
-
+        # costants\
+        x0,y0,z0 = 0.68,0.28,0.26 #kpc
+        M = 606*2.32*10**7 #Msum
+        b = 0.39 #kpc
         r = np.sqrt(R**2+z**2)
-        C_rhob = 3*bb**2*Mb/4/np.pi
-        rhob = C_rhob/ (r**2+bb**2)**(5/2)
+        numb = 3*b**2*M 
+        denb = 4*np.pi*(R**2+z**2)**(5/2)
+        rhob = numb/denb
+        
+        Md,at,aT,bt,bT = 3960*2.32*10**7,5.31,2.0,0.25,0.8 # Msum, kpc
+        num_thin= bt/4/np.pi*(at*R**2+(at+3*(z**2+bt**2)**(1/2)*(at+(z**2+bt**2)**(1/2))))*Md
+        den_thin= (R**2+(at+(z**2+bt**2)**(1/2))**2)**(5/2)*(z**2+bt**2)**(3/2)
+        num_thick= bT/4/np.pi*(aT*R**2+(aT+3*(z**2+bT**2)**(1/2)*(aT+(z**2+bT**2)**(1/2))))*Md
+        den_thick= (R**2+(aT+(z**2+bT**2)**(1/2))**2)**(5/2)*(z**2+bT**2)**(3/2)
+        rhothin = num_thin/den_thin
+        rhothick = num_thick/den_thick
+        rhod=  rhothin+rhothick
 
-        C_rhoh = Mh/4/np.pi/ah/r**2
+        Mh=4615*2.32*10**7
+        ah=12
+        C_rhoh = 1/4/np.pi/ah/r**2*Mh
         rhoh = C_rhoh*(r/ah)**(1.02)*((2.02+(r/ah)**(1.02))/(1+(r/ah)**(1.02))**2)
-        p_prob = np.array([rhoh, rhob, rhod]) / np.nansum(np.array([rhoh, rhob, rhodTOT]), axis=0)
+        
+        p_prob = np.array([rhoh, rhob, rhod]) / np.nansum(np.array([rhoh, rhob, rhod]), axis=0)
         print(p_prob)
         component = np.array(['H', 'B', 'D'])
 
         idx = np.array(p_prob == np.nanmax(p_prob, axis=0))
         res = np.array([component[idx[:, i]][0] for i in range(np.shape(idx)[1])])
         return res
-
+      
     def DF(self, V_matrix, component, R, z):
         '''retrive the probability distribution in the given region of the Galaxy. '''
         P = np.empty(shape=(np.size(component), np.shape(V_matrix)[1]))
