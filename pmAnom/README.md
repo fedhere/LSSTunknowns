@@ -1,4 +1,4 @@
-Velocity distribution of the Milky way is needed to produce the population simulated in the metric. 
+Velocity distribution of the Milky Way is needed to produce the population simulated in the metric. 
 
 We used simulation models released as part of the Gaia Data Challenge. 
 The models are scaled to the Milky Way as described in Gardner et al. 2014, MNRAS, 438, 3275.
