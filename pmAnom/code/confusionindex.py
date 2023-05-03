@@ -10,7 +10,7 @@ from opsimUtils import *
 
 
 class reducedPM(BaseMetric):         
-        def __init__(self, fits_filename = 'sa93.all.fits', snr_lim=5,mode=None, MagIterLim=[0,1,1], surveyduration=10,
+        def __init__(self, fits_filename = '../data/sa93.all.fits', snr_lim=5,mode=None, MagIterLim=[0,1,1], surveyduration=10,
                       metricName='reducedPM',m5Col='fiveSigmaDepth',gap_selection=False, atm_err =0.01,
                       mjdCol='observationStartMJD',filterCol='filter', seeingCol='seeingFwhmGeom',dataout=True,**kwargs): 
             self.mjdCol = mjdCol 
