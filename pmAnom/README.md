@@ -1,3 +1,6 @@
+code folder include: TPMmetric.py, LSmetric.py, confutionindex.py, populaions_synthesis_pm.py
+data folder include: Halo.isc_sloan, Disk.isc_sloan, Bulge.isc_sloan, link to download Gaiachallengedata.pkl, population_nside32.p.
+
 Velocity distribution of the Milky Way is needed to produce the population simulated in the metric. 
 
 We used simulation models released as part of the Gaia Data Challenge. 
