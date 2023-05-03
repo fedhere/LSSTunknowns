@@ -8,11 +8,11 @@ import itertools
 
 def sample_simulation(x, y, z, d):
         """
-        The sample_simulation method generates a sample of stars at a given Galactic location, where the input arguments R, z, and phi are the Galactocentric cylindrical coordinates, and d is the distance to the star. The method first computes the distance from the Galactic center for each star in the input sample, then selects the stars in the Gaia dataset whose distances are closest to the distance of the input sample, and finally, samples the velocities of these stars to generate the velocity components of the input sample. The method then computes the magnitude distribution for the stars in the Bulge, Disk, and Halo regions, using BaSTI isochrones, and draws samples from these distributions to generate the magnitudes of the input sample. The method returns the Cartesian coordinates, velocities, and magnitudes of the input sample.
+        The sample_simulation method generates a sample of stars at a given Galactic location, where the input arguments x,y,z are the Galactocentric cartesian coordinates, and d is the distance to the star. The method first computes the distance from the Galactic center for each star in the input sample, then selects the stars in the Gaia dataset whose distances are closest to the distance of the input sample, and finally, samples the velocities of these stars to generate the velocity components of the input sample. The method then computes the magnitude distribution for the stars in the Bulge, Disk, and Halo regions, using BaSTI isochrones, and draws samples from these distributions to generate the magnitudes of the input sample. The method returns the Cartesian coordinates, velocities, and magnitudes of the input sample.
         
-        R = Galactocentric cylindrical radius
-        z = Galactocentric cylindrical azimuth
-        phi = Galactocentric cylindrical longitude
+        x = Galactocentric cartesian coordinates
+        y = Galactocentric cartesian coordinates
+        z = Galactocentric cartesian coordinates
         """
         sample = d.size
         dposition = np.array(list(map(lambda xx,yy,zz : np.sqrt(xx**2+yy**2+zz**2),x, y,z)))
@@ -40,7 +40,7 @@ def sample_simulation(x, y, z, d):
 
 def population_synthesis(slicers, nslice
     slicer = slicers(nslice)
-    with open('Gaiachallengedata.pkl', 'rb') as gaiadata:
+    with open('../data/Gaiachallengedata.pkl', 'rb') as gaiadata:
             gaia = pickle.load(gaiadata)
 
     RA,Dec = slicer.slicePoints['ra'],slicer.slicePoints['dec']
