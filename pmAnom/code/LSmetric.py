@@ -23,7 +23,7 @@ plt.ion()
 # The LSPMmetric class is a custom metric designed to evaluate the #efficiency of the Large Synoptic Survey Telescope (LSST) in detecting high proper #motion stars. The __init__ method initializes the instance variables of the class #with the input values provided to the method.
 
 class LSPMmetric(BaseMetric):
-    def __init__(self,metricName='LSPMmetric', populationfile = './data/population_nside32.p', f='g', surveyduration=10, snr_lim=5., sigma_threshold=1, m5Col='fiveSigmaDepth', mjdCol='observationStartMJD', filterCol='filter', seeingCol='seeingFwhmGeom', dataout=False,**kwargs):
+    def __init__(self,metricName='LSPMmetric', populationfile = '../data/population_nside32.p', f='g', surveyduration=10, snr_lim=5., sigma_threshold=1, m5Col='fiveSigmaDepth', mjdCol='observationStartMJD', filterCol='filter', seeingCol='seeingFwhmGeom', dataout=False,**kwargs):
     
         self.populationfile = populationfile
         # opsim
