@@ -68,10 +68,11 @@ class LSPMmetric(BaseMetric):
         
         if np.size(obs)>2:
             fieldRA, fieldDec = np.mean(dataSlice['fieldRA']), np.mean(dataSlice['fieldDec']) 
-            index_sorted = np.argsort(np.c_[self.population['RA'],self.population['dec']])
-            id_sorted = np.c_[self.population['RA'],self.population['dec']][index_sorted[:,0]]
-            pointing = np.c_[fieldRA, fieldDec]
-            idx1 = np.matrix.searchsorted(id_sorted[:,0], pointing[0])
+            #index_sorted = np.argsort(np.c_[self.population['RA'],self.population['dec']])
+            #id_sorted = np.c_[self.population['RA'],self.population['dec']][index_sorted[:,0]]
+            #pointing = np.c_[fieldRA, fieldDec]
+            #idx1 = np.matrix.searchsorted(id_sorted[:,0], pointing[0])
+            idx1 = np.where(np.vstack([ra, dec])==np.vstack([fieldRA, fieldDec]))
             pid = idx1[1]
          
             
