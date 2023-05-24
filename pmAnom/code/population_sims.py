@@ -58,7 +58,7 @@ def sims_pm(slicers, nside, templatefile):
     gaia_ra = earthcentric_coords.ra
     gaia_dec = earthcentric_coords.dec
     gaia_pix = RADec2pix(nside,gaia_ra.value,gaia_dec.value)
-    
+    gaia_distance = earthcentric_coords.distance.value
     population = {}
     population['ra']= []
     population['dec']= []
@@ -68,7 +68,6 @@ def sims_pm(slicers, nside, templatefile):
     population['pm_un_dec']= []
     population['mag'] = []
     population['galcomp'] = []
-    distance = np.random.uniform(0.004,12,5000) *1000 # pc
     for i in np.unique(gaia_pix):
         sample_pix = np.where(gaia_pix == i)
         population['ra'].append(np.random.choice(gaia_ra[sample_pix].value,5000))
@@ -82,8 +81,12 @@ def sims_pm(slicers, nside, templatefile):
         pm_ra_cosdec, pm_dec = gcs.proper_motion.value
 
         v_unusual = np.random.uniform(-500, 500 ,size=(5000,3))
+        dH, dbin = np.histogram(gaia_distance[sample_pix])
+        dprobabilities = dH / np.sum(dH)
+        d_random_index = np.random.choice(range(len(dprobabilities)), size=5000, p=dprobabilities)
+        d_sample = dbin[d_random_index]
         catalog_target = SkyCoord(ra=np.mean(gaia_ra[sample_pix].value)*u.degree, 
-                                  dec=np.mean(gaia_dec[sample_pix].value)*u.degree, distance=distance*u.pc)
+                                  dec=np.mean(gaia_dec[sample_pix].value)*u.degree, distance=d_sample*u.pc)
         cc = catalog_target.transform_to(ICRS)
         x_unusual = cc.cartesian.x.value/1000
         y_unusual = cc.cartesian.y.value/1000
@@ -110,8 +113,8 @@ def sims_pm(slicers, nside, templatefile):
         random_x_index, random_y_index = np.unravel_index(random_index, probabilities.shape)
         random_x_value = pm_ra_cosdec_bins_values_1d[random_x_index]
         random_y_value = pm_dec_bins_values_1d[random_y_index]
-        population['pm_ra_cosdec'].append(pm_ra_cosdec_bins_values_1d[random_x_index]/distance)
-        population['pm_dec'].append(pm_dec_bins_values_1d[random_y_index]/distance)
+        population['pm_ra_cosdec'].append(pm_ra_cosdec_bins_values_1d[random_x_index])
+        population['pm_dec'].append(pm_dec_bins_values_1d[random_y_index])
         Bulge_magdist = np.random.choice(ascii.read('./Bulge.isc_sloan')['col6'].data, size=5000)
         Disk_magdist = np.random.choice(ascii.read('./Disk.isc_sloan')['col6'].data, size=5000)
         Halo_magdist = np.random.choice(ascii.read('./Halo.isc_sloan')['col6'].data, size=5000)
