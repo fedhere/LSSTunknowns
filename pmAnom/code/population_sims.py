@@ -102,8 +102,8 @@ def sims_pm(slicers, nside, templatefile):
       H, pm = np.histogram(np.sqrt(pm_ra_cosdec**2 + pm_dec**2))
       probabilities = H / np.sum(H)
 
-      # Randomly sample from the 2D histogram using numpy.random.choice()
-      random_index = np.random.choice(range(len(probabilities_1d)), size=5000, p=probabilities_1d)
+      # Randomly sample from the histogram using numpy.random.choice()
+      random_index = np.random.choice(range(len(probabilities)), size=5000, p=probabilities)
       population['pm_ra_cosdec'].append(pm_ra_cosdec[random_index-1])
       population['pm_dec'].append(pm_dec[random_index-1])
       Bulge_magdist = np.random.choice(ascii.read('./Bulge.isc_sloan')['col6'].data, size=5000)
