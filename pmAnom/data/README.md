@@ -1,3 +1,3 @@
  population_nside32.p is ~3Gb, Gaiachallengedata.p is ~1Gb, it was not possible to upload them on Github, before running the LSmetric.py, TPMmetric.py or population_synthesis_pm.py please download them in this folder to mantain the path realtions of the code. [Here](https://www.dropbox.com/home/GaiaChallengeData_MW_velocitydist%26sim_population) the link to find the files population_nside32.p and Gaiachallengedata.p: velocity distribution & simulated population
  
- NEW: new file for population sims gaia2pix.p, [here](https://drive.google.com/file/d/10MjoqkJKpITVTPLkRrEBIIv9rGr9oZgh/view?usp=sharing)
+ NEW: new file for population sims gaia2pix.p, [here](https://drive.google.com/file/d/1gOCbS6ZebfqKINbyl4FG7pVswoAu2jQ-/view?usp=sharing)
