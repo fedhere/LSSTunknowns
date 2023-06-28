@@ -71,53 +71,53 @@ def sims_pm(slicers, nside, templatefile):
     population['galcomp'] = []
     population['distance'] = []
     x,y,z = galactic_x,galactic_y,galactic_z
-    points = np.dstack([x,y,z])
-    values = np.dstack([gaia['vx'].to_numpy(),gaia['vy'].to_numpy(), gaia['vz'].to_numpy()])
     for i in np.unique(gaia_pix):
         sample_pix = np.where(gaia_pix == i)
         nstar = np.sum(gaia_pix==i)
-
+        
         population['ra'].append(np.random.choice(gaia_ra[sample_pix].value,5000))
         population['dec'].append(np.random.choice(gaia_dec[sample_pix].value,5000))   
-        gcs = Galactic(u=x[sample_pix]*u.pc, v=y[sample_pix]*u.pc, w=z[sample_pix]*u.pc, 
-                      U=gaia['vx'].to_numpy()[sample_pix]*u.km/u.s,V=gaia['vy'].to_numpy()[sample_pix]*u.km/u.s, W=gaia['vz'].to_numpy()[sample_pix]*u.km/u.s,
+        gcs = Galactocentric(x=x[sample_pix]*u.pc, y=y[sample_pix]*u.pc, z=z[sample_pix]*u.pc, 
+                      v_x=gaia['vx'].to_numpy()[sample_pix]*u.km/u.s,v_y=gaia['vy'].to_numpy()[sample_pix]*u.km/u.s, v_z=gaia['vz'].to_numpy()[sample_pix]*u.km/u.s,
                       representation_type=CartesianRepresentation, 
                       differential_type=CartesianDifferential)
-        gcs = gcs.transform_to(Galactocentric)
+        gcs = gcs.transform_to(ICRS)
         pm_ra_cosdec, pm_dec = gcs.proper_motion.value
-
-        dH, dbin = np.histogram(gaia_distance[sample_pix])
+    
+        dH, dbin = np.histogram(gcs.distance.value)
         dprobabilities = dH / np.sum(dH)
         d_random_index = np.random.choice(range(len(dprobabilities)), size=5000, p=dprobabilities)
         d_sample = dbin[d_random_index]
         population['distance'].append(d_sample)
         v_unusual = np.random.uniform(-500, 500 ,size=(5000,3))
-        catalog_target = SkyCoord(ra=np.mean(gaia_ra[sample_pix].value)*u.degree, 
-                                  dec=np.mean(gaia_dec[sample_pix].value)*u.degree, distance=d_sample*u.pc)
-        cc = catalog_target.transform_to(Galactic)
+        catalog_target = SkyCoord(ra=np.mean(gcs.ra.deg)*u.degree, 
+                                  dec=np.mean(gcs.dec.deg)*u.degree, distance=d_sample*u.pc)
+        cc = catalog_target.transform_to(Galactocentric)
         x_unusual = cc.cartesian.x.value/1000
         y_unusual = cc.cartesian.y.value/1000
         z_unusual = cc.cartesian.z.value/1000
-        gcs_un = Galactic(u=x_unusual*u.kpc, v=y_unusual*u.kpc, w=z_unusual*u.kpc, 
-                    U=v_unusual[:,0]*u.km/u.s,V=v_unusual[:,1]*u.km/u.s, W=v_unusual[:,2]*u.km/u.s,
+        gcs_un = Galactocentric(x=x_unusual*u.kpc, y=y_unusual*u.kpc, z=z_unusual*u.kpc, 
+                   v_x=v_unusual[:,0]*u.km/u.s,v_y=v_unusual[:,1]*u.km/u.s, v_z=v_unusual[:,2]*u.km/u.s,
                     representation_type=CartesianRepresentation, differential_type=CartesianDifferential)
-        gcs_un = gcs_un.transform_to(Galactocentric)
+        gcs_un = gcs_un.transform_to(ICRS)
         pm_un_ra_cosdec ,pm_un_dec = gcs_un.proper_motion.value
         population['pm_un_ra_cosdec'].append(pm_un_ra_cosdec) 
         population['pm_un_dec'].append(pm_un_dec)
-        if nstar >0:
+        if nstar >5:
             v_gaia = np.column_stack([gaia['vx'].to_numpy()[sample_pix],gaia['vy'].to_numpy()[sample_pix],gaia['vz'].to_numpy()[sample_pix]])
             row_values = np.linalg.norm(v_gaia, axis=1)
             weights = row_values / np.sum(row_values)
             v_usual = v_gaia[np.random.choice(range(v_gaia.shape[0]), size=5000, p=weights)] 
         else:
+            points = np.dstack([x,y,z])
+            values = np.dstack([gaia['vx'].to_numpy(),gaia['vy'].to_numpy(), gaia['vz'].to_numpy()])
             coordinates = np.dstack([x_unusual,y_unusual,z_unusual])
             v_usual = griddata(points[0], values[0], coordinates[0], method='nearest')
-
-        gcs = Galactic(u=x_unusual*u.kpc, v=y_unusual*u.kpc, w=z_unusual*u.kpc, 
-                    U=v_usual[:,0]*u.km/u.s,V=v_usual[:,1]*u.km/u.s, W=v_usual[:,2]*u.km/u.s,
+    
+        gcs = Galactocentric(x=x_unusual*u.kpc, y=y_unusual*u.kpc, z=z_unusual*u.kpc, 
+                v_x=v_usual[:,0]*u.km/u.s, v_y=v_usual[:,1]*u.km/u.s, v_z=v_usual[:,2]*u.km/u.s,
                     representation_type=CartesianRepresentation, differential_type=CartesianDifferential)
-        gcs = gcs.transform_to(Galactocentric)
+        gcs = gcs.transform_to(ICRS)
         pm_ra_cosdec ,pm_dec = gcs.proper_motion.value
         population['pm_ra_cosdec'].append(pm_ra_cosdec) 
         population['pm_dec'].append(pm_dec)
