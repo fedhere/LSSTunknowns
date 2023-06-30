@@ -3,6 +3,7 @@ import pandas as pd
 import pickle
 from scipy.stats import truncnorm
 from itertools import combinations
+import healpy as hp
 ### LSST dependencies
 from rubin_sim.maf.metrics import BaseMetric
 from rubin_sim.maf.utils.mafUtils import radec2pix
