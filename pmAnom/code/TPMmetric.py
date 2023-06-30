@@ -8,6 +8,32 @@ from rubin_sim.maf.metrics import BaseMetric
 from rubin_sim.maf.utils.mafUtils import radec2pix
 from rubin_sim.maf.utils import m52snr, astrom_precision, sigma_slope
 
+def RADec2pix(nside, ra, dec, degree=True):
+    """
+    Calculate the nearest healpixel ID of an RA/Dec array, assuming nside.
+
+    Parameters
+    ----------
+    nside : int
+        The nside value of the healpix grid.
+    ra : numpy.ndarray
+        The RA values to be converted to healpix ids, in degree by default.
+    dec : numpy.ndarray
+        The Dec values to be converted to healpix ids, in degree by default.
+
+    Returns
+    -------
+    numpy.ndarray
+        The healpix ids.
+    """
+    if degree:
+        ra = np.radians(ra) # change to radians
+        dec = np.radians(dec)
+    
+    lat = np.pi/2. - dec
+    hpid = hp.ang2pix(nside, lat, ra )
+    return hpid
+
 class TransienPM(BaseMetric): 
      #    Generate a population of transient objects and see what is its proper motion  , 
     def __init__(self, metricName='TransienPM', f='g', snr_lim=5,m5Col='fiveSigmaDepth',  populationfile = 'gaia2pix.p', mjdCol='observationStartMJD',filterCol='filter',seeingCol='seeingFwhmGeom', surveyduration=10, **kwargs): 
