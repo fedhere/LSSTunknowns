@@ -36,7 +36,7 @@ def RADec2pix(nside, ra, dec, degree=True):
 
 class TransienPM(BaseMetric): 
      #    Generate a population of transient objects and see what is its proper motion  , 
-    def __init__(self, metricName='TransienPM', f='g', snr_lim=5,m5Col='fiveSigmaDepth',  populationfile = 'gaia2pix.p', mjdCol='observationStartMJD',filterCol='filter',seeingCol='seeingFwhmGeom', surveyduration=10, **kwargs): 
+    def __init__(self, metricName='TransienPM', f='g', snr_lim=5,m5Col='fiveSigmaDepth', nside= 32, populationfile = 'gaia2pix.p', mjdCol='observationStartMJD',filterCol='filter',seeingCol='seeingFwhmGeom', surveyduration=10, **kwargs): 
         self.populationfile = populationfile
         with open(self.populationfile, 'rb') as data:
             self.population = pickle.load(data)
@@ -47,7 +47,7 @@ class TransienPM(BaseMetric):
         self.snr_lim = snr_lim 
         self.f = f
         self.surveyduration = surveyduration  
-        
+        self.nside = nside
         super(TransienPM, self).__init__(col=[self.mjdCol, self.filterCol, self.m5Col, self.seeingCol, 'night'],units='fraction of transients recovered', metricName=metricName,**kwargs) 
         
         with open(self.populationfile, 'rb') as data:
